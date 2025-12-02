@@ -1,0 +1,14 @@
+---
+# defaults file for pve_hypervisor_rolling_upgrade
+
+# Troubleshooting variables
+enable_debug: false
+notification_email:   #Email address will receive failure warning and reports
+
+# Ceph variables if you are using ceph pool
+# ceph_storage enable/disable ceph related tasks
+ceph_storage: true
+ceph_flags:
+  - noout
+  - norecover
+  - norebalance

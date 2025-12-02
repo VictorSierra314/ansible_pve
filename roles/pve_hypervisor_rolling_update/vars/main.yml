@@ -1,0 +1,17 @@
+---
+# vars file for pve_hypervisor_rolling_update
+
+# Variables for Proxmox API calls
+pve_api_node:   #Hostname of the api receiver hypervisor
+pve_domain:     #Your domain
+pve_api_user:   #API user ID
+pve_api_token:  #API user token ID
+pve_api_secret: #API user token secret
+pve_check_cert: #boolean - Check hypervisor SSL cert
+
+# Communication related variables
+notification_sender:  #Sender email address
+smtp_host:            #SMTP server IP use to relay email
+smtp_port:            #SMTP server port use to relay email
+smtp_user:            #SMTP user name (omited by default)
+smtp_password:        #SMTP user password (omited by default)
