@@ -3,7 +3,7 @@
   block:
     - name: Upgrade pve hypervisor
       ansible.builtin.apt:
-        updatee_cache: true
+        update_cache: true
         upgrade: full
       register: pve_upgrade
   rescue:
