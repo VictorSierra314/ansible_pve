@@ -11,6 +11,7 @@
       value: true
   loop: "{{ ceph_flags }}"
   loop_control:
+    pause: 2
     label: "{{ item }}"
   delegate_to: localhost
 
@@ -24,8 +25,6 @@
   register: ceph_flag_status
   until: ceph_flag_status.json.data|bool
   failed_when: not ceph_flag_status.json.data|bool
-  vars:
-    ansible_failed_result: "FAIL - Ceph {{ item }} flag is not set"
   retries: 10
   delay: 10
   loop: "{{ ceph_flags }}"
