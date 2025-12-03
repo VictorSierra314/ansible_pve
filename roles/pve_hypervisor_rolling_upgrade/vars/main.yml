@@ -11,6 +11,7 @@ pve_check_cert: #boolean - Check hypervisor SSL cert
 
 # Communication related variables
 notification_sender:  #Sender email address
+enable_report: true
 smtp_host:            #SMTP server IP use to relay email
 smtp_port:            #SMTP server port use to relay email
 smtp_user:            #SMTP user name (omited by default)

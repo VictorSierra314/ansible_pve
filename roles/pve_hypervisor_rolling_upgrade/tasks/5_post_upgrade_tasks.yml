@@ -45,3 +45,4 @@
       ---------------------------
       {{ last_check_out.stdout_lines | to_nice_yaml }}
   delegate_to: localhost
+  when: enable_report|bool
