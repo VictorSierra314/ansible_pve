@@ -2,9 +2,9 @@
 # tasks file for pve_hypervisor_rolling_upgrade
 - name: Gather ansible log path
   find:
-    paths: /var/log/ansible/
+    paths: "{{ run_log_folder }}"
     file_type: file
-    patterns: "monthly_{{ inventory_hostname }}*"
+    patterns: "{{ run_log_name }}"
     age: -1d
   delegate_to: localhost
   run_once: true
