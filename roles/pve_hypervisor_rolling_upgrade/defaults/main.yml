@@ -3,6 +3,8 @@
 
 # Troubleshooting variables
 enable_debug: false
+run_log_folder:       #Path on the localhost where the playbook output is saved
+run_log_name:         #Playbook output log filename pattern
 notification_email:   #Email address will receive failure warning and reports
 
 # Ceph variables if you are using ceph pool
