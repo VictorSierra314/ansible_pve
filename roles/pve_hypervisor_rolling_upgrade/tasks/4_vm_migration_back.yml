@@ -1,0 +1,22 @@
+---
+- name: Wait for the node to be available
+  wait_for_connection:
+
+- name: Migrate VM back to {{ inventory_hostname }}
+  community.general.proxmox_migrate:
+    api_host: "{{ pve_api_node }}"
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token }}"
+    api_token_secret: "{{ pve_api_secret }}"
+    vmid: "{{ item.vmid }}"
+    target: "{{ inventory_hostname }}"
+    online: true
+    validate_certs: "{{ pve_check_cert }}"
+  loop: "{{ node_vms_list.json.data }}"
+  loop_control:
+    pause: 5
+    label: "{{ item.name }}"
+  when:
+    - node_vms_info.json.data[0] is defined
+    - item.status == 'running'
+  delegate_to: localhost
