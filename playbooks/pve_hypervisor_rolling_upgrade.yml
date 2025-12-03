@@ -1,0 +1,6 @@
+---
+- name: pve_hypervisor_rolling_upgrade
+  hosts: labpxmx*
+  serial: 1
+  roles:
+    - pve_hypervisor_rolling_upgrade
