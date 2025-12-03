@@ -8,7 +8,7 @@ run_log_name:         #Playbook output log filename pattern
 notification_email:   #Email address will receive failure warning and reports
 
 # Ceph variables if you are using ceph pool
-# ceph_storage enable/disable ceph related tasks
+#ceph_storage enable/disable ceph related tasks
 ceph_storage: true
 ceph_flags:
   - noout
