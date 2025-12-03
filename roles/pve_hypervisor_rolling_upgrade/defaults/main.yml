@@ -23,3 +23,5 @@ migrate_vm: true
 #The node (pve hypervisor) name need to match the ID in your cluster
 target_node_odd: "{% if inventory_hostname == <your_main_node> %}<your_other_node>{% else %}<your_main_node>{% endif %}"
 target_node_even: "{% if inventory_hostname == <your_main_node> %}<your_other_node>{% else %}<your_main_node>{% endif %}"
+#boolean - Run autoremove after the host reboot
+rm_old_dependency: true

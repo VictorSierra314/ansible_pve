@@ -28,6 +28,13 @@
     reboot_timeout: 1800
   when: reboot_check.stat.exists or kernel_version_check.stdout != '2'
 
+- name: Remove unused dependency
+  ansible.builtin.apt:
+    autoremove: true
+  when:
+    - pve_upgrade.changed
+    - rm_old_dependency|bool
+
 - name: Migrate VM back to the node
   include_tasks: 4_vm_migration_back.yml
   when: 
