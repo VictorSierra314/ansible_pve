@@ -12,3 +12,14 @@ ceph_flags:
   - noout
   - norecover
   - norebalance
+
+# Node upgrade variables
+#boolean - true upgrade node then migrate VM if reboot necessary, false migrade vm before upgrade
+upgrade_with_vm: true
+#boolean - Run VM Migration tasks
+migrate_vm: true
+#Set a node to migrade odd VM(based on vmid) and another for even VM(based on vmid)
+#This way you split the worload of your node beeing upgraded in 2 other node
+#The node (pve hypervisor) name need to match the ID in your cluster
+target_node_odd: "{% if inventory_hostname == <your_main_node> %}<your_other_node>{% else %}<your_main_node>{% endif %}"
+target_node_even: "{% if inventory_hostname == <your_main_node> %}<your_other_node>{% else %}<your_main_node>{% endif %}"
