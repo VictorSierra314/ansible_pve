@@ -47,6 +47,7 @@
 
 - name: Post-migration-back verification
   block:
+
     - name: Collect expected VMIDs for QEMU/LXC on {{ inventory_hostname }}
       set_fact:
         expected_vm_map: >-
@@ -71,6 +72,7 @@
                 )
             )
           }}
+
     - name: Re-check LXC state on {{ inventory_hostname }} (after migration back)
       uri:
         url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/lxc"
@@ -96,6 +98,7 @@
         )
       retries: "{{ migration_check_loop }}"
       delay: "{{ migration_check_delay }}"
+
     - name: Re-check VMs state on {{ inventory_hostname }} (after migration back)
       uri:
         url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/qemu"
@@ -121,7 +124,9 @@
         )
       retries: "{{ migration_check_loop }}"
       delay: "{{ migration_check_delay }}"
+
   rescue:
+
     - name: Build actual map from response
       set_fact:
         actual_vms_map: >-
@@ -146,6 +151,7 @@
                 )
             )
           }}
+
     - debug:
         msg: |
           ---------------------------
@@ -166,6 +172,7 @@
           {% endif %}
           {% endfor %}
       delegate_to: localhost
+
     - name: Send notification with log in case of failure (post-back)
       mail:
         from: "{{ notification_sender }}"
@@ -195,7 +202,10 @@
           {% endif %}
           {% endfor %}
       delegate_to: localhost
+
     - name: Exit playbook
       fail:
         msg: "ERROR - VMs are still present in {{ inventory_hostname }}"
       when: exit_on_migrate_back_fail|bool
+
+########### END of Block

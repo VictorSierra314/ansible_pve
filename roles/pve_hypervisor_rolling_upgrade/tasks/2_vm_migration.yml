@@ -64,6 +64,7 @@
 
 - name: Check VMs migration
   block:
+
     - name: Check {{ inventory_hostname }} remaining LXC
       uri:
         url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/lxc"
@@ -85,6 +86,7 @@
         )
       retries: "{{ migration_check_loop }}"
       delay: "{{ migration_check_delay }}"
+
     - name: Check {{ inventory_hostname }} remaining VMs
       uri:
         url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/qemu"
@@ -106,7 +108,9 @@
         )
       retries: "{{ migration_check_loop }}"
       delay: "{{ migration_check_delay }}"
+
   rescue:
+
     - debug:
         msg: |
           ---------------------------
@@ -125,6 +129,7 @@
           {% endfor %}
       delegate_to: localhost
       when: enable_debug|bool
+
     - name: Send notification with log in case of failure
       mail:
         from: "{{ notification_sender }}"
@@ -151,6 +156,9 @@
           {% endif %}
           {% endfor %}
       delegate_to: localhost
+
     - name: Exit playbook
       fail:
         msg: "ERROR - VMs are still present in {{ inventory_hostname }}"
+
+########## END of Block
