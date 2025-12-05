@@ -24,10 +24,17 @@
     ceph -s
   register: last_check_out
 
-- name: Display check commands output
+- name: Report
   debug:
-    msg: "{{ last_check_out.stdout_lines }}"
-  when: enable_debug|bool
+    msg: |
+      ---------------------------
+      {{ inventory_hostname }} - Upgrade report
+      ---------------------------
+      {{ last_check_out.stdout_lines | to_nice_yaml }}
+  delegate_to: localhost
+  when: 
+    - not enable_report|bool
+    - enable_debug|bool
 
 - name: Mail report to {{ notification_email }}
   mail:
@@ -41,7 +48,7 @@
     subject: "PVE Hypervisor upgrade SUCCESSFULL - {{ inventory_hostname }}"
     body: |
       ---------------------------
-      {{ inventory_hostname }} - iUpgrade report
+      {{ inventory_hostname }} - Upgrade report
       ---------------------------
       {{ last_check_out.stdout_lines | to_nice_yaml }}
   delegate_to: localhost

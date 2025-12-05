@@ -16,3 +16,9 @@ smtp_host:            #SMTP server IP use to relay email
 smtp_port:            #SMTP server port use to relay email
 smtp_user:            #SMTP user name (omited by default)
 smtp_password:        #SMTP user password (omited by default)
+
+# Vars for migration parameters
+migration_loop_delay:   #Pause in second in between each migration api call
+migration_check_delay:  #Pause in second between each check retry post migration
+migration_check_loop:   #Numbers of post migration verification check 
+exit_on_migrate_back_fail:  #Boolean - If VM migration back to node fail, exit the play

@@ -2,20 +2,200 @@
 - name: Wait for the node to be available
   wait_for_connection:
 
+- name: Migrate LXC back to {{ inventory_hostname }}
+  ignore_errors: true
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}/lxc/{{ item.vmid }}/migrate"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
+    validate_certs: "{{ pve_check_cert }}"
+    body_format: form-urlencoded
+    body:
+      target: "{{ inventory_hostname | lower }}"
+      restart: 1
+    status_code: 200
+    return_content: true
+  loop: "{{ node_lxc_list.json.data }}"
+  loop_control:
+    pause: "{{ migration_loop_delay }}"
+    label: "{{ item.vmid }} - {{ item.name }}"
+  when:
+    - node_lxc_list.json.data[0] is defined
+    - item.status == 'running'
+  delegate_to: localhost
+
 - name: Migrate VM back to {{ inventory_hostname }}
+  ignore_errors: true
   community.proxmox.proxmox_kvm:
     api_host: "{{ pve_api_node }}"
     api_user: "{{ pve_api_user }}"
     api_token_id: "{{ pve_api_token }}"
     api_token_secret: "{{ pve_api_secret }}"
     vmid: "{{ item.vmid }}"
-    node: "{{ inventory_hostname }}"
+    migrate: true
+    node: "{{ inventory_hostname | lower }}"
     validate_certs: "{{ pve_check_cert }}"
   loop: "{{ node_vms_list.json.data }}"
   loop_control:
-    pause: 5
-    label: "{{ item.name }}"
+    pause: "{{ migration_loop_delay }}"
+    label: "{{ item.vmid }} - {{ item.name }}"
   when:
-    - node_vms_info.json.data[0] is defined
+    - node_vms_list.json.data[0] is defined
     - item.status == 'running'
   delegate_to: localhost
+
+- name: Post-migration-back verification
+  block:
+    - name: Collect expected VMIDs for QEMU/LXC on {{ inventory_hostname }}
+      set_fact:
+        expected_vm_map: >-
+          {{
+            dict(
+              (node_vms_list.json.data | default([]))
+              | map(attribute='vmid')
+              | zip(
+                  (node_vms_list.json.data | default([]))
+                  | map(attribute='status')
+                )
+            )
+          }}
+        expected_lxc_map: >-
+          {{
+            dict(
+              (node_lxc_list.json.data | default([]))
+              | map(attribute='vmid')
+              | zip(
+                  (node_lxc_list.json.data | default([]))
+                  | map(attribute='status')
+                )
+            )
+          }}
+    - name: Re-check LXC state on {{ inventory_hostname }} (after migration back)
+      uri:
+        url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/lxc"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
+        validate_certs: "{{ pve_check_cert }}"
+      register: lxc_back_check
+      until: >
+        (
+          lxc_back_check.json is defined and
+          lxc_back_check.json.data is defined and
+          (
+            dict(
+              (lxc_back_check.json.data | default([]))
+              | map(attribute='vmid')
+              | zip(
+                  (lxc_back_check.json.data | default([]))
+                  | map(attribute='status')
+                )
+            )
+          ) == expected_lxc_map
+        )
+      retries: "{{ migration_check_loop }}"
+      delay: "{{ migration_check_delay }}"
+    - name: Re-check VMs state on {{ inventory_hostname }} (after migration back)
+      uri:
+        url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/qemu"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
+        validate_certs: "{{ pve_check_cert }}"
+      register: vm_back_check
+      until: >
+        (
+          vm_back_check.json is defined and
+          vm_back_check.json.data is defined and
+          (
+            dict(
+              (vm_back_check.json.data | default([]))
+              | map(attribute='vmid')
+              | zip(
+                  (vm_back_check.json.data | default([]))
+                  | map(attribute='status')
+                )
+            )
+          ) == expected_vm_map
+        )
+      retries: "{{ migration_check_loop }}"
+      delay: "{{ migration_check_delay }}"
+  rescue:
+    - name: Build actual map from response
+      set_fact:
+        actual_vms_map: >-
+          {{
+            dict(
+              (vm_back_check.json.data | default([]))
+              | map(attribute='vmid')
+              | zip(
+                  (vm_back_check.json.data | default([]))
+                  | map(attribute='status')
+                )
+            )
+          }}
+        actual_lxc_map: >-
+          {{
+            dict(
+              (lxc_back_check.json.data | default([]))
+              | map(attribute='vmid')
+              | zip(
+                  (lxc_back_check.json.data | default([]))
+                  | map(attribute='status')
+                )
+            )
+          }}
+    - debug:
+        msg: |
+          ---------------------------
+          {{ inventory_hostname }} - VMs/LXC migration back to node FAILED
+          ---------------------------
+          The following VMs/LXC failed to migrate back to the node.
+
+          {% for vmid, expected in expected_vm_map.items() %}
+          {% set current = actual_vms_map.get(vmid, 'missing') %}
+          {% if current != expected %}
+          VMID: {{ vmid }}, expected status: {{ expected }}, current status: {{ current }}
+          {% endif %}
+          {% endfor %}
+          {% for vmid, expected in expected_lxc_map.items() %}
+          {% set current = actual_lxc_map.get(vmid, 'missing') %}
+          {% if current != expected %}
+          VMID: {{ vmid }}, expected status: {{ expected }}, current status: {{ current }}
+          {% endif %}
+          {% endfor %}
+      delegate_to: localhost
+    - name: Send notification with log in case of failure (post-back)
+      mail:
+        from: "{{ notification_sender }}"
+        to: "{{ notification_email }}"
+        host: "{{ smtp_host }}"
+        port: "{{ smtp_port }}"
+        username: "{{ smtp_user | default(omit) }}"
+        password: "{{ smtp_password | default(omit) }}"
+        attach: "{{ ansible_log.files[0].path | default(omit) }}"
+        subject: "PVE Hypervisor upgrade FAILURE - {{ inventory_hostname }}"
+        body: |
+          ---------------------------
+          {{ inventory_hostname }} - VMs/LXC migration back to node FAILED
+          ---------------------------
+          The following VMs/LXC failed to migrate back to the node.
+
+          {% for vmid, expected in expected_vm_map.items() %}
+          {% set current = actual_vms_map.get(vmid, 'missing') %}
+          {% if current != expected %}
+          VMID: {{ vmid }}, expected status: {{ expected }}, current status: {{ current }}
+          {% endif %}
+          {% endfor %}
+          {% for vmid, expected in expected_lxc_map.items() %}
+          {% set current = actual_lxc_map.get(vmid, 'missing') %}
+          {% if current != expected %}
+          VMID: {{ vmid }}, expected status: {{ expected }}, current status: {{ current }}
+          {% endif %}
+          {% endfor %}
+      delegate_to: localhost
+    - name: Exit playbook
+      fail:
+        msg: "ERROR - VMs are still present in {{ inventory_hostname }}"
+      when: exit_on_migrate_back_fail|bool

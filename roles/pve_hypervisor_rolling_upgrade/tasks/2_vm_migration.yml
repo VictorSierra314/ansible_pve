@@ -19,47 +19,30 @@
   register: node_lxc_list
   delegate_to: localhost
 
-- name: Migrate {{ inventory_hostname }} VMs (even numbers) to {{ target_node_even }}
+- name: Migrate {{ inventory_hostname }} LXC - even to {{ target_node_even }}, odd to {{ target_node_odd }}
   ignore_errors: true
-  community.proxmox.proxmox_kvm:
-    api_host: "{{ pve_api_node }}"
-    api_user: "{{ pve_api_user }}"
-    api_token_id: "{{ pve_api_token }}"
-    api_token_secret: "{{ pve_api_secret }}"
-    vmid: "{{ item.vmid }}"
-    node: "{{ target_node_even }}"
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname }}/lxc/{{ item.vmid }}/migrate"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
     validate_certs: "{{ pve_check_cert }}"
-  loop: "{{ node_vms_list.json.data }}"
+    body_format: form-urlencoded
+    body:
+      target: "{% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
+      restart: 1
+    status_code: 200
+    return_content: true
+  loop: "{{ node_lxc_list.json.data }}"
   loop_control:
-    pause: 5
-    label: "{{ item.vmid }} - {{ item.name }}"
-  when:
-    - node_vms_list.json.data[0] is defined
-    - item.vmid is even
-    - item.status == 'running'
-  delegate_to: localhost
-
-- name: Migrate {{ inventory_hostname }} LXC (even numbers) to {{ target_node_even }}
-  ignore_errors: true
-  community.proxmox.proxmox_kvm:
-    api_host: "{{ pve_api_node }}"
-    api_user: "{{ pve_api_user }}"
-    api_token_id: "{{ pve_api_token }}"
-    api_token_secret: "{{ pve_api_secret }}"
-    vmid: "{{ item.vmid }}"
-    node: "{{ target_node_even }}"
-    validate_certs: "{{ pve_check_cert }}"
-  loop: "{{ node_vms_list.json.data }}"
-  loop_control:
-    pause: 5
-    label: "{{ item.vmid }} - {{ item.name }}"
+    pause: "{{ migration_loop_delay }}"
+    label: "{{ item.vmid }} - {{ item.name }}, to {% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
   when:
     - node_lxc_list.json.data[0] is defined
-    - item.vmid is even
     - item.status == 'running'
   delegate_to: localhost
 
-- name: Migrate {{ inventory_hostname }} VMs (odd numbers) to {{ target_node_odd }}
+- name: Migrate {{ inventory_hostname }} VMs - even to {{ target_node_even }}, odd to {{ target_node_odd }}
   ignore_errors: true
   community.proxmox.proxmox_kvm:
     api_host: "{{ pve_api_node }}"
@@ -67,53 +50,20 @@
     api_token_id: "{{ pve_api_token }}"
     api_token_secret: "{{ pve_api_secret }}"
     vmid: "{{ item.vmid }}"
-    node: "{{ target_node_odd }}"
+    migrate: true
+    node: "{% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
     validate_certs: "{{ pve_check_cert }}"
   loop: "{{ node_vms_list.json.data }}"
   loop_control:
-    pause: 5
-    label: "{{ item.vmid }} - {{ item.name }}"
+    pause: "{{ migration_loop_delay }}"
+    label: "{{ item.vmid }} - {{ item.name }}, to {% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
   when:
     - node_vms_list.json.data[0] is defined
-    - item.vmid is odd
-    - item.status == 'running'
-  delegate_to: localhost
-
-- name: Migrate {{ inventory_hostname }} LXC (odd numbers) to {{ target_node_odd }}
-  ignore_errors: true
-  community.proxmox.proxmox_kvm:
-    api_host: "{{ pve_api_node }}"
-    api_user: "{{ pve_api_user }}"
-    api_token_id: "{{ pve_api_token }}"
-    api_token_secret: "{{ pve_api_secret }}"
-    vmid: "{{ item.vmid }}"
-    node: "{{ target_node_odd }}"
-    validate_certs: "{{ pve_check_cert }}"
-  loop: "{{ node_vms_list.json.data }}"
-  loop_control:
-    pause: 5
-    label: "{{ item.vmid }} - {{ item.name }}"
-  when:
-    - node_lxc_list.json.data[0] is defined
-    - item.vmid is odd
     - item.status == 'running'
   delegate_to: localhost
 
 - name: Check VMs migration
   block:
-    - name: Check {{ inventory_hostname }} remaining VMs
-      uri:
-        url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/qemu"
-        method: GET
-        headers:
-          Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
-        validate_certs: "{{ pve_check_cert }}"
-      register: migration_vm_check
-      failed_when: >
-        migration_vm_check.json.data
-        | selectattr('status', 'equalto', 'running')
-        | list
-        | length > 0
     - name: Check {{ inventory_hostname }} remaining LXC
       uri:
         url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/lxc"
@@ -122,12 +72,59 @@
           Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
         validate_certs: "{{ pve_check_cert }}"
       register: migration_lxc_check
-      failed_when: >
-        migration_vm_check.json.data
-        | selectattr('status', 'equalto', 'running')
-        | list
-        | length > 0
+      until: >
+        ( 
+          migration_lxc_check.json is defined and
+          migration_lxc_check.json.data is defined and
+          (
+            migration_lxc_check.json.data
+            | selectattr('status', 'equalto', 'running')
+            | list
+            | length
+          ) == 0
+        )
+      retries: "{{ migration_check_loop }}"
+      delay: "{{ migration_check_delay }}"
+    - name: Check {{ inventory_hostname }} remaining VMs
+      uri:
+        url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/qemu"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
+        validate_certs: "{{ pve_check_cert }}"
+      register: migration_vm_check
+      until: >
+        ( 
+          migration_vm_check.json is defined and
+          migration_vm_check.json.data is defined and
+          (
+            migration_vm_check.json.data
+            | selectattr('status', 'equalto', 'running')
+            | list
+            | length
+          ) == 0
+        )
+      retries: "{{ migration_check_loop }}"
+      delay: "{{ migration_check_delay }}"
   rescue:
+    - debug:
+        msg: |
+          ---------------------------
+          {{ inventory_hostname }} - VMs/LXC migration FAILED
+          ---------------------------
+          The following VMs/LXC are still on the node, node upgrade was aborted.
+          {% for i in migration_vm_check.json.data %}
+          {% if i.state == "running" %}
+          - {{ i.name }}, vmid: {{ i.vmid }}, state: {{ i.status }}
+          {% endif %}
+          {% endfor %}
+          {% for j in migration_lxc_check.json.data %}
+          {% if j.state == "running" %}
+          - {{ j.name }}, vmid: {{ j.vmid }}, state: {{ j.status }}
+          {% endif %}
+          {% endfor %}
+      delegate_to: localhost
+      when: enable_debug|bool
     - name: Send notification with log in case of failure
       mail:
         from: "{{ notification_sender }}"
