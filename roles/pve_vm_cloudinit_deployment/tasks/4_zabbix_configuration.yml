@@ -1,0 +1,30 @@
+---
+- name: Set {{ guest_name }} Zabbix config file
+  lineinfile:
+    path: "{{ zabbix_conf_path }}"
+    regexp: "{{ item2.regexp }}"
+    line: "{{ item2.line }}"
+  loop:
+    - { regexp: '^Server=127', line: 'Server={{ zabbix_server_ip }}' }
+    - { regexp: '^ServerActive=127', line: 'ServerActive={{ zabbix_server_ip }}:{{ zabbix_server_port }}' }
+    - { regexp: '^Hostname=Za', line: 'Hostname={{ guest_name }}' }
+    - { regexp: '^# HostMetadata=', line: 'HostMetadata={{ zabbix_metadata_group }}' }
+    - { regexp: '^# HostInterface=', line: "HostInterface={{ guest_ipv4.split('/')[0] }}" }
+  loop_control:
+    loop_var: item2
+  delegate_to: "{{ guest_ip }}"
+
+- name: Allow Zabbix server port {{ zabbix_server_port }} in {{ guest_name }} SELinux
+  seport:
+    ports: "{{ zabbix_server_port }}"
+    proto: tcp
+    setype: zabbix_port_t
+    state: present
+  delegate_to: "{{ guest_ip }}"
+  when: "'rocky' in guest_os"
+
+- name: Enable {{ guest_name }} Zabbix agent
+  systemd:
+    name: zabbix-agent
+    enabled: yes
+  delegate_to: "{{ guest_ip }}"

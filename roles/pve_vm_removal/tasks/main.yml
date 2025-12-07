@@ -1,0 +1,9 @@
+---
+# tasks file for proxmox_deploy_from_template
+#
+- name: Remove guest
+  include_tasks: remove_vm.yml
+
+- name: Removal output
+  debug:
+    var: rm_vm_out

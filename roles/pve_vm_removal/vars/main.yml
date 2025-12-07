@@ -1,0 +1,15 @@
+---
+# vars file
+#
+# Proxmox API login informations
+pve_api_user:
+pve_api_token_id:
+pve_api_token_secret:
+# IP or FQDN of you pve host that will be receiving api calls 
+pve_api_host:
+email_host:
+smtp_host:
+
+#Other vars
+guest_name: "{{ vmname }}"
+domain:

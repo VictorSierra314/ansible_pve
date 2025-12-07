@@ -1,0 +1,106 @@
+---
+- name: Download Kind version {{ kind_version }}
+  get_url:
+    url: "https://kind.sigs.k8s.io/dl/v{{ kind_version }}/kind-linux-amd64"
+    dest: "/usr/local/bin/kind"
+    mode: 755
+  delegate_to: "{{ guest_ip }}"
+  when: "'debian' in guest_os or 'ubuntu' in guest_os"
+
+- name: Download and create kubectl, helm and docker apt key
+  shell: |
+    if [ -f {{ item2.dt }} ];
+    then
+      rm -f {{ item2.dt }}
+    fi
+    curl -fsSL {{ item2.ul }} | gpg --dearmor -o {{ item2.dt }}
+  loop:
+    - { ul: 'https://pkgs.k8s.io/core:/stable:/v{{ kubectl_version }}/deb/Release.key', dt: '/etc/apt/trusted.gpg.d/kubernetes-apt-keyring.gpg' }
+    - { ul: 'https://baltocdn.com/helm/signing.asc', dt: '/etc/apt/trusted.gpg.d/helm.gpg' }
+    - { ul: 'https://download.docker.com/linux/{{ os_familly }}/gpg', dt: '/etc/apt/trusted.gpg.d/docker.gpg' }
+  loop_control:
+    loop_var: item2
+  delegate_to: "{{ guest_ip }}"
+  when: "'debian' in guest_os or 'ubuntu' in guest_os"
+
+- name: Gather guest OS code name for ubuntu and debian distro
+  shell: . /etc/os-release && echo "$VERSION_CODENAME"
+  register: version_name
+  delegate_to: "{{ guest_ip }}"
+  when: "'debian' in guest_os or 'ubuntu' in guest_os"
+
+- name: Add kubectl, helm and docker repos- Debian based OS
+  apt_repository:
+    repo: "{{ item2.rp }}"
+    state: present
+    filename: "{{ item2.fl }}"
+  loop:
+    - { rp: 'deb https://pkgs.k8s.io/core:/stable:/v{{ kubectl_version }}/deb/ /', fl: 'kubernetes.list' }
+    - { rp: 'deb https://baltocdn.com/helm/stable/debian/ all main', fl: 'helm-stable.list' }
+    - { rp: 'deb https://download.docker.com/linux/{{ os_familly }} {{ version_name.stdout }} stable', fl: 'docker.list' }
+  loop_control:
+    loop_var: item2
+  delegate_to: "{{ guest_ip }}"
+  when: "'debian' in guest_os or 'ubuntu' in guest_os"
+
+- name: Add Docker CE and K8s repository - RPM based OS
+  ansible.builtin.yum_repository:
+    name: "{{ item3.fl }}"
+    description: "{{ item3.ds }}"
+    baseurl: "{{ item3.rp }}"
+    enabled: yes
+    gpgcheck: yes
+    gpgkey: "{{ item3.ky }}"
+  loop:
+    - { rp: 'https://download.docker.com/linux/centos/9/$basearch/stable', fl: 'docker-ce', ds: 'Docker CE Stable - $basearch', ky: 'https://download.docker.com/linux/centos/gpg' }
+    - { rp: 'https://pkgs.k8s.io/core:/stable:/v{{ kubectl_version }}/rpm/', fl: 'k8s', ds: 'K8s repos - $basearch', ky: 'https://pkgs.k8s.io/core:/stable:/v{{ kubectl_version }}/rpm/repodata/repomd.xml.key' }
+  loop_control:
+    loop_var: item3
+  delegate_to: "{{ guest_ip }}"
+  when: "'rocky' in guest_os"
+
+- name: Install Docker and Kubernetes packages - RPM based OS
+  dnf:
+    name: '{{ item2 }}'
+    state: latest
+  delegate_to: "{{ guest_ip }}"
+  register: update_out
+  loop: "{{ kubernetes_packages }}"
+  loop_control:
+    loop_var: item2
+  when: 
+    - "'rocky' in guest_os"
+    - "'apt' not in item2"
+    - "'helm' not in item2"
+
+- name: Update apt new repo cache
+  apt:
+    update_cache: yes
+    upgrade: yes
+  delegate_to: "{{ guest_ip }}"
+  when: "'debian' in guest_os or 'ubuntu' in guest_os"
+
+- name: Install Docker and Kubernetes packages - Deb based OS
+  apt:
+    name: '{{ item2 }}'
+    state: latest
+  delegate_to: "{{ guest_ip }}"
+  register: update_out
+  loop: "{{ kubernetes_packages }}"
+  loop_control:
+    loop_var: item2
+  when: "'debian' in guest_os or 'ubuntu' in guest_os"
+
+- name: Add kubectl logs 'too many files open' fix
+  blockinfile:
+    path: /etc/sysctl.conf
+    marker: "# ANSIBLE MANAGED BLOCK - kubectl 'too many files open' fix"
+    block: |
+      fs.inotify.max_user_watches = 524288
+      fs.inotify.max_user_instances = 512
+  delegate_to: "{{ guest_ip }}"
+
+      #- name: Reboot {{ guest_name }}
+      #  reboot:
+      #  delegate_to: "{{ hostvars[inventory_hostname][guest_name|replace('-', '_') + '_ip'] }}"
+      #  when: update_out.changed

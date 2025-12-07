@@ -1,0 +1,42 @@
+---
+- name: Set ceph flags
+  ansible.builtin.uri:
+    url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/cluster/ceph/flags/{{ item }}"
+    method: PUT
+    headers:
+      Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
+    validate_certs: "{{ pve_check_cert | default('false') }}"
+    body_format: json
+    body:
+      value: true
+  loop: "{{ ceph_flags }}"
+  loop_control:
+    label: "{{ item }}"
+  delegate_to: localhost
+
+- name: Wait until Ceph flag is applied
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_host }}:8006/api2/json/cluster/ceph/flags/{{ item }}"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
+    validate_certs: "{{ pve_check_cert | default('false') }}"
+  register: ceph_flag_status
+  until: ceph_flag_status.json.data
+  retries: 10
+  delay: 10
+  loop: "{{ ceph_flags }}"
+  loop_control:
+    label: "{{ item }}"
+  delegate_to: localhost
+
+- name: Validate all Ceph flag responses
+  assert:
+    that:
+      - item.json.data | bool
+    fail_msg: "FAIL - Ceph {{ item.item }} flag is not set"
+    success_msg: "OK - Ceph {{ item.item }} flag set"
+  loop: "{{ ceph_flag_status.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  delegate_to: localhost

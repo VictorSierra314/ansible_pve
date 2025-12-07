@@ -1,0 +1,40 @@
+---
+- block:
+    - name: Gather {{ guest_name }} information
+      community.general.proxmox_kvm:
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token_id }}"
+        api_token_secret: "{{ pve_api_token_secret }}"
+        api_host: "{{ pve_api_host }}"
+        name: "{{ guest_name }}"
+        state: current
+      register: vm_info_out
+  rescue:
+    - name: VM Name {{ vmname }} NOT FOUND
+      fail:
+        msg:
+          - VM Name {{ vmname }} NOT FOUND
+          - The VM name is case sensitive
+          - Either it's a typo or the VM is already gone
+
+- name: Find {{ guest_name }} proxmox host
+  find:
+    path: /etc/pve/nodes
+    patterns: "{{ vm_info_out.vmid }}.conf"
+    recurse: true
+  register: host_info
+  delegate_to: "{{ pve_api_host.split('.')[0] }}"
+
+- name: Remove {{ vmname }} from {{ host_info.files[0].path.split('/')[4] }}
+  community.general.proxmox_kvm:
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    name: "{{ guest_name }}"
+    node: "{{ host_info.files[0].path.split('/')[4] }}"
+    vmid: "{{ vm_info_out.vmid }}"
+    timeout: 600
+    force: true
+    state: absent
+  register: rm_vm_out

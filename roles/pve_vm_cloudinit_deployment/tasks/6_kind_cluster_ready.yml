@@ -1,0 +1,25 @@
+---
+- name: Copy kind cluster configuration file
+  copy:
+    src: sensai_kind_cluster_conf.yml
+    dest: /tmp/
+  delegate_to: "{{ guest_ip }}"
+
+- name: Build kind cluster
+  shell: |
+    if [ $(kind get clusters | grep {{ guest_name }} | wc -l) -eq 0 ];
+    then
+      kind create cluster --name {{ guest_name }}-sensai-k8s-kind-cluster --config=/tmp/sensai_kind_cluster_conf.yml;
+      kubectl get nodes
+    else
+      echo 'kind cluster is already running';
+      kind get clusters;
+    fi
+  register: kind_cluster_build
+  delegate_to: "{{ guest_ip }}"
+
+- name: Label worker node as sensai master
+  shell: |
+    kubectl label node {{ guest_name }}-sensai-k8s-kind-cluster-worker sensai.role=master
+    kubectl label node {{ guest_name }}-sensai-k8s-kind-cluster-worker2 sensai.role=master
+  delegate_to: "{{ guest_ip }}"

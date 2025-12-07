@@ -1,0 +1,86 @@
+---
+# defaults file
+#
+############ TEMPLATE VARIABLES #################################################
+template_name: <template_name>
+template_id: <template_vmid>
+# network interface id
+template_connection_name: <template_nic_id> # eth0/ens18..
+# Ansible inventory name used after cloning
+template_inventory_name: <template_ansible_inventory_hostname>
+
+############ ZABBIX VARIABLES ###################################################
+# This work with zabbix autoregistration
+set_zabbix: no  # yes/no, if no disregards this block variables
+zabbix_server_ip: <zabbix_server_ipv4>
+zabbix_server_port: <zabbix_server_tcp/port>
+zabbix_metadata_group: <autoregistration_metadata_group_name>
+
+############ NETWORK VARIABLES ##################################################
+# Guest ip is defined in the guest variable block, everything else is here
+gateway:
+dns_ip:
+domain:
+guest_nic: 
+  net: net0
+  type: virtio 
+  bridge_id: # vmbr0/vmbr1... 
+  fw: 1  # 1/0 to enable or disabled proxmox firewall.
+
+############ STORAGE VARIABLES ##################################################
+storage_template:
+storage_ceph:
+storage_format: raw  # raw,qcow2..
+
+############ MISC VARIABLES #####################################################
+start_on_boot: no  # yes/no, start the guest when the host poweron/reboot.
+pkg_update: yes  # yes/no, Run dnf/apt update at the end of the deployment.
+
+############ PREP FOR KUBERNETES ################################################
+# This will install a bunch of packages to have kubernetes ready after deployment
+# When you launch the playbook add -e kub=yes if you want the packages installed
+kubernetes_ready: "{{ kub | default('no') }}"
+kind_cluster_ready: "{{ kind | default('no') }}"
+kind_version: '0.19.0'
+kubectl_version: '1.28'
+kubernetes_packages:
+  - apt-transport-https
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+  - kubectl
+  - kubeadm
+  - helm
+  - wget
+  - unzip
+  - tar
+
+############ GUESTS VARIABLES ###################################################
+# You can only deploy 1 guest at a time
+# You can use upper cases in the guest_name, lower cases will be used when needed
+# The compute_host is the PVE node used to deploy the guest
+admin_id: local_admin
+guest_name: "{{ vmname }}"
+guest_cores: "{{ cpu | default('2') }}"
+guest_ram: "{{ ram | default('2048') }}"
+guest_os: "{{ os | default('ubuntu24') }}" # ubuntu24 / ubuntu22 / debian12 / rocky9
+filesystem_size: "{{ disk | default('100') }}" # Set the size of the / filesystem, in GB
+storage_type: "{{ storage | default('ssd') }}" # ssd/hdd/local # Move vm disk to ceph ssd pool, hdd pool or local storage if not set it default to ceph hdd
+
+
+############ EMAIL VARIABLES ###################################################
+# Set these value to false to either print the output with the credentials
+# in ansible output, or get it by email
+enable_report_in_clear: "{{ report | default('true') }}"
+enable_email_report: "{{ email | default('true') }}"
+#owner_email: #This variable has to be set when executing the playbook
+
+# Send the deployment report into a temporary file
+# This is necessary for the cluster deployment
+# to pass all credentials in a single email at the end.
+# For anything else it can be disregarded.
+output_to_file: false
+output_to_file_path: "{{ playbook_dir }}/{{ core_name }}_cluster_deployment_report.file"
+cluster_deployment: false

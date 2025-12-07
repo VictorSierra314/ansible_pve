@@ -1,0 +1,8 @@
+---
+# handlers file
+#
+- name: Restart DNS service
+  service:
+    name: named
+    state: restarted
+  delegate_to: "{{ dns_ip }}"

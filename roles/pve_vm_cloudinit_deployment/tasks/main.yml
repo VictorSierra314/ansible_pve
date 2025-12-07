@@ -1,0 +1,110 @@
+---
+# tasks file
+#
+- name: Run initial checks
+  include_tasks: 1_initial_checks.yml
+
+- name: Clone guest
+# Clone the template,
+# Update the hardware/network conf and reboot to apply changes.
+# If the guest exist most of the task will not run, check the README.
+  include_tasks: 2_template_cloning.yml
+
+- name: Wait for all guest to be available
+# Previous task reboot the guest with Proxmox API.
+# This confirm all host availabliity before running any more tasks.
+  wait_for_connection:
+  delegate_to: "{{ guest_ip }}"
+
+- name: Update guest hostname and packages
+# Set guest hostname and /ets/hosts file.
+# Subscribe to Satellite if satellite_subscription: yes in defaults variables.
+# Run dnf update if dnf_update is set to yes in defaults variables and reboot.
+  include_tasks: 3_update_guest.yml
+
+- name: Set Zabbix configuration
+# Only if set_zabbix is set to yes in defaults variables.
+# You need to have Zabbix autoregistration configured.
+# And the condition based on the Host metadata value.
+  include_tasks: 4_zabbix_configuration.yml
+  when: set_zabbix
+
+# Set the repo and install the necessary packages to run kubernetes
+# This is optional, it will only run if the variable kubernetes_ready is set to yes
+# and deploy a cluster with kind if kind_cluster_ready is set to yes
+- name: Install Kubernetes packages
+  include_tasks: 5_kubernetes_ready.yml
+  when: kubernetes_ready != 'no' or kind_cluster_ready != 'no'
+
+- name: Deploy kind cluster - Require K8s packages
+  include_tasks: 6_kind_cluster_ready.yml
+  when: kind_cluster_ready != 'no'
+
+- name: Deployment report
+  debug:
+    msg:
+      - "{{ guest_name }} deployment is done"
+      - "-----------------------------------"
+      - "VMID: {{ clone_output.vmid | default('undefined') if clone_output is defined else assigned_pve_node.stdout_lines[0] | default('undefined') }}"
+      - "PVE_HOST: {{ compute_host }}"
+      - "CPU: {{ guest_cores }}vcpu"
+      - "RAM: {{ guest_ram }}MB"
+      - "OS_DRIVE: {{ filesystem_size }}G for the root partition"
+      - "OS_TYPE: {{ template_name.split('-')[1] }}"
+      - "IP: {{ guest_ip }}"
+      - "FQDN: {{ guest_name }}.{{ domain }}"
+      - "ADMIN USERNAME: {{ admin_id }}"
+      - "ADMIN PASSWORD: {{ admin_pwd }} (will EXPIRE by end of day)"
+      - "KIND_CLUSTER_NAME:" 
+      - "{{ kind_cluster_build.stdout_lines|default('No cluster deployed') }}"
+  when: 
+    - owner_email is not defined or owner_email|length == 0
+    - enable_report_in_clear is defined
+    - enable_report_in_clear|bool
+
+- name: Output deployment report in a temporary file - K8s cluster only
+  blockinfile:
+    path: "{{ playbook_dir }}/{{ core_name }}_cluster_deployment_report.file"
+    marker: "### {mark} - Ansible block - {{ guest_name }} deployment report ###"
+    create: true
+    block: |
+      VMID: {{ clone_output.vmid | default('undefined') if clone_output is defined else assigned_pve_node.stdout_lines[0] | default('undefined') }}
+      PVE_HOST: {{ compute_host }}
+      CPU: {{ guest_cores }}vcpu
+      RAM: {{ guest_ram }}MB
+      OS_DRIVE: {{ filesystem_size }}G for the root partition
+      OS_TYPE: {{ template_name.split('-')[1] }}
+      IP: {{ guest_ip }}
+      FQDN: {{ guest_name }}.{{ domain }}
+      ADMIN USERNAME: {{ admin_id }}
+      ADMIN PASSWORD: {{ admin_pwd }} (will EXPIRE by end of day)
+      -                          -                            -
+  delegate_to: localhost
+  when: 
+    - output_to_file|bool
+    - core_name is defined
+
+- name: Email report
+  mail:
+    host: "{{ smtp_host }}"
+    sender: 
+    to: "{{ owner_email }}"
+    subject: "{{ guest_name }} deployment report"
+    body: |
+      VMID: {{ clone_output.vmid | default('undefined') if clone_output is defined else assigned_pve_node.stdout_lines[0] | default('undefined') }}
+      PVE_HOST: {{ compute_host }}
+      CPU: {{ guest_cores }}vcpu
+      RAM: {{ guest_ram }}MB
+      OS_DRIVE: {{ filesystem_size }}G for the root partition
+      OS_TYPE: {{ template_name.split('-')[1] }}
+      IP: {{ guest_ip }}
+      FQDN: {{ guest_name }}.{{ domain }}
+      ADMIN USERNAME: {{ admin_id }}
+      ADMIN PASSWORD: {{ admin_pwd }}
+      KIND_CLUSTER_NAME:
+      {{ kind_cluster_build.stdout_lines|default('No cluster deployed') | to_nice_json }}
+  when: 
+    - owner_email is defined
+    - owner_email|length > 0
+    - enable_email_report is defined
+    - enable_email_report|bool

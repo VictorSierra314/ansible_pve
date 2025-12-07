@@ -1,0 +1,196 @@
+---
+- name: Set variable for Debian12 deployment
+  set_fact:
+    os_familly: debian
+    template_name: Template-Debian12
+    template_id: 997
+    template_connection_name: 'ens18'
+    zabbix_conf_path: /etc/zabbix/zabbix_agentd.conf
+    fsdisk: /dev/sda
+    fsnumb: 1
+    fstype: ext4
+    su_group: sudo
+  when: guest_os == 'debian12'
+
+- name: Set variable for Runner deployment
+  set_fact:
+    os_familly: debian
+    template_name: Template-Gitlabrunner
+    template_id: 995
+    template_connection_name: 'ens18'
+    zabbix_conf_path: /etc/zabbix/zabbix_agentd.conf
+    fsdisk: /dev/sda
+    fsnumb: 1
+    fstype: ext4
+    su_group: sudo
+  when: guest_os == 'runner'
+
+- name: Set variable for Ubuntu22 deployment
+  set_fact:
+    os_familly: ubuntu
+    template_name: Template-Ubuntu22
+    template_id: 998
+    template_connection_name: 'ens18'
+    zabbix_conf_path: /etc/zabbix/zabbix_agentd.conf
+    fsdisk: /dev/sda
+    fsnumb: 1
+    fstype: ext4
+    su_group: sudo
+  when: guest_os == 'ubuntu22'
+
+- name: Set variable for Ubuntu24 deployment
+  set_fact:
+    os_familly: ubuntu
+    template_name: Template-Ubuntu24
+    template_id: 996
+    template_connection_name: 'ens18'
+    zabbix_conf_path: /etc/zabbix/zabbix_agentd.conf
+    fsdisk: /dev/sda
+    fsnumb: 1
+    fstype: ext4
+    su_group: sudo
+  when: guest_os == 'ubuntu24'
+
+- name: Set variable for RockyLinux9 deployment
+  set_fact:
+    os_familly: rocky
+    template_name: Template-RockyLinux9
+    template_id: 999
+    template_connection_name: ens18
+    zabbix_conf_path: /etc/zabbix_agentd.conf
+    vgroot: vgrl
+    lvroot: root
+    su_group: wheel
+  when: guest_os == 'rocky9'
+
+- name: Select the proxmox node to host {{ guest_name }}
+  shell: "pvesh get /cluster/resources | grep 'node/' | grep -E '{{ deployment_nodes }}' | awk '{ print $28, $34 }' | sort -n | head -n1"
+  register: deployment_pve_node
+  delegate_to: "{{ pve_api_host.split('.')[0] }}"
+  when: assigned_pve_node.stdout == '0'
+
+- name: Set the compute_host variable for new deployment
+  set_fact:
+    compute_host: "{{ deployment_pve_node.stdout.split(' ')[1] }}"
+  when: assigned_pve_node.stdout == '0'
+
+- name: Set the compute_host variable for re-run
+  set_fact:
+    compute_host: "{{ assigned_pve_node.stdout_lines[0] }}"
+  when: assigned_pve_node.stdout != '0'
+
+- name: Cloning {{ guest_name }} from template {{ template_name }}
+  community.general.proxmox_kvm:
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    clone: "{{ template_name }}"
+    vmid: "{{ template_id }}"
+    name: "{{ guest_name }}"
+    node: "{{ pve_api_host.split('.')[0] }}"
+    storage: "{{ storage_template }}"
+    format: "{{ storage_format }}"
+    full: yes
+    timeout: 6000
+    state: present
+  register: clone_output
+
+- name: Migrate {{ guest_name }} to {{ compute_host }}
+  community.general.proxmox_kvm:
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    name: "{{ guest_name }}"
+    vmid: "{{ clone_output.vmid }}"
+    node: "{{ compute_host }}"
+    migrate: true
+
+- name: Update {{ guest_name }} network interface
+  community.general.proxmox_nic:
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    name: "{{ guest_name }}"
+    vmid: "{{ clone_output.vmid }}"
+    interface: "{{ guest_nic.net }}"
+    model: "{{ guest_nic.type }}"
+    bridge: "{{ guest_nic.bridge_id }}"
+    firewall: "{{ guest_nic.fw }}"
+    state: present
+
+- name: Update {{ guest_name }} hardware configuration
+  community.general.proxmox_kvm:
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    name: "{{ guest_name }}"
+    node: "{{ compute_host }}"
+    cores: "{{ guest_cores|int // 2 }}"
+    sockets: "{{ guest_sockets | default('2') }}"
+    cpu: "{{ guest_proc | default('x86-64-v2-AES') }}"
+    memory: "{{ guest_ram }}"
+    onboot: "{{ start_on_boot }}"
+    ciuser: "{{ cloud_init_username }}"
+    cipassword: "{{ cloud_init_password }}"
+    searchdomains: "{{ domain }}"
+    nameservers: "{{ dns_ip }}"
+    sshkeys: "{{ cloud_init_sshkey }}"
+    ipconfig:
+      ipconfig0: "ip={{ guest_ip }}/17,gw={{ gateway }}"
+    timeout: 30
+    vmid: "{{ clone_output.vmid }}"
+    update: true
+  register: update_guest
+
+- name: Update cloud-init image
+  shell: "qm cloudinit update {{ clone_output.vmid }}"
+  delegate_to: "{{ compute_host }}"
+  when: update_guest.changed
+
+- name: Grow existing disk
+  community.general.proxmox_disk:
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    vmid: "{{ clone_output.vmid }}"
+    disk: scsi0
+    size: "+{{ filesystem_size }}G"
+    state: resized
+  when:
+    - clone_output.changed
+    - "'ubuntu' in guest_os or 'debian' in guest_os"
+
+- name: Add additional storage for the root filesystem
+  community.general.proxmox_disk:
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    name: "{{ guest_name }}"
+    vmid: "{{ clone_output.vmid }}"
+    disk: scsi1
+    iothread: true
+    format: raw
+    storage: "{{ storage_ceph }}"
+    size: "{{ filesystem_size }}"
+    state: present
+  when: 
+    - clone_output.changed
+    - "'rocky' in guest_os"
+
+- name: Start {{ guest_name }}
+  community.general.proxmox_kvm:
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token_id }}"
+    api_token_secret: "{{ pve_api_token_secret }}"
+    api_host: "{{ pve_api_host }}"
+    name: "{{ guest_name }}"
+    vmid: "{{ clone_output.vmid }}"
+    node: "{{ compute_host }}"
+    timeout: 300
+    state: started
