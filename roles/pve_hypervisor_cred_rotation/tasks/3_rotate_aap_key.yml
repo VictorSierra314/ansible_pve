@@ -1,0 +1,198 @@
+---
+    - name: ROTATE AAP KEY | Gather Ansible user private key
+      set_fact:
+        new_private_key: "{{ item.content | b64decode }}"
+      loop: "{{ priv_key_content.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+      delegate_to: ---CONTROLER---
+      run_once: true
+      when:
+        - item.item.key == 'ansible'
+        - item.content is defined
+        - item.item.value.key_name is defined
+        - item.item.value.key_name|length > 0
+
+    - name: ROTATE AAP KEY | Gather Ansible automation platform credentials
+      uri:
+        url: "{{ aap_url }}/api/controller/v2/credentials/"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ aap_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        status_code: 200
+        validate_certs: false
+        return_content: true
+      delegate_to: ---CONTROLER---
+      run_once: true
+      register: get_all_key
+
+    - name: ROTATE AAP KEY | DEBUG | Display credentials output
+      debug:
+        msg: "TYPE: {{ item.kind }} -- ID: {{ item.id }}"
+      loop: "{{ get_all_key.json.results }}"
+      loop_control:
+        label: "{{ item.name }}"
+      delegate_to: ---CONTROLER---
+      run_once: true
+      when: enable_debug|bool
+
+    - name: ROTATE AAP KEY | Filter Ansible credentials
+      set_fact:
+        machine_credentials: >-
+          {{ get_all_key.json.results
+            | selectattr('name', 'search', '^Ansible SSH key 20')
+             | selectattr('kind', 'equalto', 'ssh')
+             | sort(attribute='name', reverse=true)
+             | list }}
+      delegate_to: ---CONTROLER---
+      run_once: true
+
+    - name: ROTATE AAP KEY | DEBUG | Display most recent machine credentials ID
+      debug:
+        msg: "{{ machine_credentials[0].id | int }}"
+      delegate_to: ---CONTROLER---
+      run_once: true
+      when: enable_debug|bool
+
+    - name: ROTATE AAP KEY | Create/Pull new machine ID
+      block:
+        - name: Create new machine credential with SSH key
+          uri:
+            url: "{{ aap_url }}/api/controller/v2/credentials/"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ aap_token }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              name: "Ansible SSH key {{ lookup('pipe', 'date +%Y%m') }}"
+              description: "Created via API"
+              organization: "{{ org_id }}"
+              credential_type: "{{ machine_type_id }}"
+              inputs:
+                username: "{{ aap_username }}"
+                ssh_key_data: "{{ new_private_key }}"
+            status_code: 201
+            validate_certs: false
+            return_content: true
+          delegate_to: ---CONTROLER---
+          run_once: true
+          register: create_credential
+      rescue:
+        - name: Pull the latest credential machine ID
+          debug:
+            msg: "Machine ID: Ansible SSH key {{ lookup('pipe', 'date +%Y%m') }} EXIST already. ID: {{ (get_all_key.json.results | selectattr('name', 'search', 'Ansible SSH key ' + lookup('pipe', 'date +%Y%m')) | list | first).id }}"
+          delegate_to: ---CONTROLER---
+          run_once: true
+
+    - name: ROTATE AAP KEY | DEBUG | Display new created machine credential
+      debug:
+        msg: "{{ create_credential.json.created }} -- {{ create_credential.json.name }} -- {{ create_credential.json.id }}"
+      delegate_to: ---CONTROLER---
+      run_once: true
+      when: 
+        - create_credential.json.created is defined
+        - enable_debug|bool
+
+    - name: ROTATE AAP KEY | List all job templates
+      uri:
+        url: "{{ aap_url }}/api/controller/v2/job_templates/?page_size=100"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ aap_token }}"
+          Content-Type: "application/json"
+        validate_certs: false
+        return_content: true
+      delegate_to: ---CONTROLER---
+      run_once: true
+      register: job_templates
+
+    - name: ROTATE AAP KEY | Parse job_templates JSON
+      set_fact:
+        parsed_templates: "{{ job_templates.content | from_json }}"
+      delegate_to: ---CONTROLER---
+      run_once: true
+
+    - name: ROTATE AAP KEY | DEBUG | Display all templates with their current machine credentials ID
+      debug:
+        msg: "ID: {{ item.id }} -- ORG: {{ item.organization }} -- SSH ID: {{ item.summary_fields.credentials[0].id | default('n/a') }}"
+      loop: "{{ parsed_templates.results }}"
+      loop_control:
+        label: "{{ item.name }}"
+      delegate_to: ---CONTROLER---
+      run_once: true
+      when: enable_debug|bool
+
+    - name: ROTATE AAP KEY | Disassociate existing machine credential from job template
+      uri:
+        url: "{{ aap_url }}/api/controller/v2/job_templates/{{ item.id }}/credentials/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ aap_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body: |
+          {
+            "id": {{ machine_credentials[0].id | int }},
+            "disassociate": true
+          }
+        status_code: 204
+        validate_certs: false
+      loop: "{{ parsed_templates.results }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: dissociate_result
+      delegate_to: ---CONTROLER---
+      run_once: true
+      failed_when: >
+        dissociate_result.status != 204 and
+        ('Cannot assign multiple Machine credentials' not in  dissociate_result.json.error | default(''))
+
+    - name: ROTATE AAP KEY | Associate new credential with job templates
+      uri:
+        url: "{{ aap_url }}/api/controller/v2/job_templates/{{ item.id }}/credentials/"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ aap_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body: |
+          {
+          "id": {{ (get_all_key.json.results | selectattr('name', 'search', 'Ansible SSH key ' + lookup('pipe', 'date +%Y%m')) | list | first).id | default(create_credential.json.id) }}
+          }
+        status_code: 204
+        validate_certs: false
+      loop: "{{ parsed_templates.results }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: add_cred_out
+      delegate_to: ---CONTROLER---
+      run_once: true
+
+    - name: ROTATE AAP KEY | Get existing credentials
+      uri:
+        url: "{{ aap_url }}/api/controller/v2/job_templates/{{ item.id }}/"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ aap_token }}"
+          Content-Type: "application/json"
+        return_content: true
+        validate_certs: false
+      loop: "{{ parsed_templates.results }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: template_detail
+      delegate_to: ---CONTROLER---
+      run_once: true
+
+    - name: ROTATE AAP KEY | DEBUG | Get all templates current credentials
+      debug:
+        msg: "{{ item.item.summary_fields.credentials }}"
+      loop: "{{ template_detail.results }}"
+      loop_control: 
+        label: "{{ item.item.name }}"
+      delegate_to: ---CONTROLER---
+      run_once: true
+      when: enable_debug|bool

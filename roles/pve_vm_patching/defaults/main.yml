@@ -1,0 +1,18 @@
+---
+# defaults file for pve_vm_patching
+
+disable_reboot: false
+
+#Email notification list
+enable_email_reports: true
+notification_email:
+sender_email: noreply@com
+smtp_host:
+
+###Patching variables
+batch:
+log_path: /var/log/ansible/pve_vm_patching
+#Print the yum/dnf update output: true or false
+print_patching_output: true
+#Print the yum/dnf utoremove output: true or false
+print_autorm_output: true

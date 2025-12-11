@@ -1,0 +1,61 @@
+---
+# tasks file for pve_hypervisor_cred_rotation
+- name: ROTATE KEY | Generate new ssh key
+  openssh_keypair:
+    path: "/tmp/{{ item.value.key_name }}"
+    type: "{{ keytype }}"
+    size: "{{ keybits }}"
+  loop: "{{ users_list | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  register: new_key_out
+  notify: 
+    - DEBUG | Print out key info
+    - Print out priv key info
+    - Email notification for successfull rotation
+  when: item.value.generate_key|bool
+
+- name: ROTATE KEY | Add new publickey
+  authorized_key:
+    user: "{{ item.item.key }}"
+    state: present
+    key: "{{ item.public_key }}"
+  loop: "{{ new_key_out.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  when: item.public_key is defined
+
+- name: ROTATE KEY | Move private key
+  copy:
+    src: "/tmp/{{ item.0.value.key_name }}"
+    remote_src: true
+    dest: "{{ item.1.split(';')[0] }}{{ item.0.value.key_name }}"
+    backup: true
+    owner: "{{ item.1.split(';')[1] }}"
+    group: "{{ item.1.split(';')[2] }}"
+    mode: 0400
+  loop: "{{ users_list | dict2items
+                  | selectattr('value.key_path', 'defined')
+                  | list
+                  | subelements('value.key_path') }}"
+  loop_control:
+    label: "{{ item.0.key }} -- {{ item.1.split(';')[0] }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  notify: 
+    - Print out priv key info
+    - Email notification for successfull rotation
+  when: item.0.value.generate_key|bool
+
+- name: ROTATE KEY | Gather priv key info
+  slurp:
+    src: '/tmp/{{ item.value.key_name }}'
+  loop: "{{ users_list | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  register: priv_key_content
+  when: item.value.generate_key|bool

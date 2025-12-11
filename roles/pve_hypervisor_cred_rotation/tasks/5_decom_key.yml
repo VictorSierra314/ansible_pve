@@ -1,0 +1,72 @@
+---
+- name: DECOM KEY | Gather backup key path
+  find:
+    paths: "{{ item.1.split(';')[0] }}"
+    recurse: no
+    use_regex: true
+    patterns: ['{{ item.0.value.key_name }}.[0-9]*']
+  loop: "{{ users_list | dict2items
+                  | selectattr('value.key_path', 'defined')
+                  | list
+                  | subelements('value.key_path') }}"
+  loop_control:
+    label: "{{ item.0.key }} -- {{ item.1.split(';')[0] }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  register: backupkeylist
+  when:
+    - item.0.value.generate_key|bool
+
+- name: DECOM KEY | DEBUG | Display key to be removed
+  debug:
+    msg: |
+      {% for i in backupkeylist.results | subelements('files') %}
+      -- {{ i.1.path }} --
+      {% endfor %}
+  when: enable_debug|bool
+
+- name: DECOM KEY | Remove backuped key (batch)
+  shell: "rm -f {{ backupkeylist.results | subelements('files') | map(attribute='1.path') | map('quote') | join(' ') }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  when: backupkeylist.results | subelements('files') | map(attribute='1.path') | map('quote') | join(' ') | length > 0
+
+- name: DECOM KEY | Pull public key
+  slurp:
+    src: "/tmp/{{ item.value.key_name }}.pub"
+  loop: "{{ users_list | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  register: pub_key_data
+  when: item.value.generate_key|bool
+
+- name: DECOM KEY | DEBUG | Display public key
+  debug:
+    msg: "{{ item.content | b64decode }}"
+  loop: "{{ pub_key_data.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  when: 
+    - item.content is defined
+    - item.content|length > 0
+    - enable_debug|bool
+
+- name: DECOM KEY | Set public key as single entry in authorized key
+  authorized_key:
+    user: "{{ item.item.key }}"
+    state: present
+    key: "{{ item.content | b64decode }}"
+    exclusive: true
+  loop: "{{ pub_key_data.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  notify: 
+    - Remove temporary priv ssh key files
+    - Remove temporary pub ssh key files
+  when: 
+    - item.content is defined
+    - item.content|length > 0

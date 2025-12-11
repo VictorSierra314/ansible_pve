@@ -1,0 +1,41 @@
+---
+- name: Wait for 10min to have all service running or timeout/failing
+  pause:
+    minutes: 10
+
+- name: Load service facts
+  ansible.builtin.service_facts:
+
+- name: Register services as a list
+  set_fact:
+    services_list: "{{ ansible_facts.services | dict2items }}"
+
+- name: Enable email notification if any services are in failed state
+  set_fact:
+    send_service_failed_notification: true
+  loop: "{{ services_list }}"
+  loop_control:
+    label: "{{ item.value.name }}"
+  when: item.value.state == "failed"
+
+- name: Email notification when services are in failed state
+  mail:
+    host: "{{ smtp_host }}"
+    to: "{{ notification_email }}"
+    sender: "{{ sender_email }}"
+    subject: "ANSIBLE AUTOMATION - ERROR - {{ inventory_hostname }} has services in failed state"
+    body: |
+      Date: {{ ansible_date_time.date }}
+      Run at: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
+      Batch: {{ batch }}
+      Host: {{ inventory_hostname }}
+      Services:
+      {% for item in services_list %}
+      {% if item.value.state == 'failed' %}
+      - Service Name: {{ item.key }}, Service State: {{ item.value.state }}
+      {% endif %}
+      {% endfor %}
+  delegate_to: localhost
+  when:
+    - send_service_failed_notification is defined
+    - send_service_failed_notification 

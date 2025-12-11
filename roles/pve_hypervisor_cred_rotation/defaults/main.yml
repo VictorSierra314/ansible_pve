@@ -1,0 +1,6 @@
+---
+# defaults file for pve_hypervisor_cred_rotation
+enable_debug: false
+notification_email: 
+smtp_host:
+trigger_email: false

@@ -1,0 +1,15 @@
+---
+- name: TEST | Test connection
+  block:
+    - name: TEST | Set email variable
+      set_fact:
+        trigger_email: false
+    - name: TEST | Check connections
+      wait_for_connection:
+        timeout: 5
+  rescue:
+    - name: TEST | Trigger email
+      set_fact:
+        trigger_email: true
+      changed_when: "trigger_email|bool"
+      notify: Send email if test failed

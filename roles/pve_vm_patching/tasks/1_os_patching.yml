@@ -1,0 +1,33 @@
+---
+- name: Patch all OS
+  block:
+    - name: Patch RHEL os
+      yum:
+        update_cache: true
+        name: '*'
+        state: latest
+      register: rhel_patch_out
+    - name: Print yum update output
+      debug:
+        msg: "{{ rhel_patch_out.results }}"
+      when: 
+        - rhel_patch_out.results is defined
+        - rhel_patch_out.changed is defined
+        - rhel_patch_out.changed
+        - print_patching_output
+    - name: Clean up cache
+      shell: "yum clean all"
+  rescue:
+    - name: Email notification on failure
+      mail:
+        host: "{{ smtp_host }}"
+        to: "{{ notification_email }}"
+        sender: "{{ sender_email }}"
+        subject: "ANSIBLE AUTOMATION - ERROR - {{ inventory_hostname }} patching failed"
+        body: |
+          Ansible FAILED to patch {{ inventory_hostname }}
+          Date: {{ ansible_date_time.date }}
+          Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
+          Output:
+          {{ rhel_patch_out | to_nice_json }}
+      delegate_to: localhost

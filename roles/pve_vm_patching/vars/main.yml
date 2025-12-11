@@ -1,0 +1,6 @@
+---
+# vars file for pve_vm_patching
+#
+service_check_exceptions:
+  - placeholder
+enable_kernel_cleanup: true

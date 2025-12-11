@@ -1,0 +1,61 @@
+---
+# tasks file for pve_hypervisor_cred_rotation
+- name: Rotate passwords
+  tags:
+    - rotate
+    - rotatepwd
+    - never
+  include_tasks: 1_rotate_passwd.yml
+  args:
+    apply:
+      tags:
+        - rotate
+        - rotatepwd
+
+- name: Rotate ssh keys
+  tags:
+    - rotate
+    - rotatekey
+    - never
+  include_tasks: 2_rotate_key.yml
+  args:
+    apply:
+      tags:
+        - rotate
+        - rotatekey
+
+- name: Rotate ssh key in AAP
+  tags:
+    - rotate
+    - rotatekey
+    - never
+  include_tasks: 3_rotate_aap_key.yml
+  args:
+    apply:
+      tags:
+        - rotate
+        - rotatekey
+
+- name: Test connection after key rotation
+  tags:
+    - rotate
+    - rotatekey
+    - test
+    - never
+  include_tasks: 4_test_connection.yml
+  args:
+    apply:
+      tags:
+        - rotate
+        - rotatekey
+        - test
+
+- name: Decom old key
+  tags:
+    - decomkey
+    - never
+  include_tasks: 5_decom_key.yml
+  args:
+    apply:
+      tags:
+        - decomkey

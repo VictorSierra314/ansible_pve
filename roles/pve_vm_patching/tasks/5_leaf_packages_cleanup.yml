@@ -1,0 +1,35 @@
+---
+- name: Clean leaf packages
+  block:
+    - name: Clean leaf packages
+      yum:
+        autoremove: true
+      register: rhel_autorm_out
+    - name: Print yum autoremove output
+      debug:
+        msg: "{{ rhel_autorm_out.results }}"
+      when: 
+        - rhel_autorm_out.changed is defined
+        - rhel_autorm_out.changed
+        - print_autorm_output
+  rescue:
+    - name: Email notification on failure
+      mail:
+        host: "{{ smtp_host }}"
+        sender: "{{ sender_email }}"
+        to: "{{ notification_email }}"
+        subject: "ANSIBLE AUTOMATION - ERROR - {{ inventory_hostname }} autoremove command failed"
+        body: |
+          Ansible FAILED to autoremove leaf packages in {{ inventory_hostname }}
+          Date: {{ ansible_date_time.date }}
+          Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
+          Output:
+          {{ rhel_autorm_out  | to_nice_json }}
+      delegate_to: localhost
+
+- name: If kernel clean up ran do a last reboot
+  reboot:
+  when: 
+    - rhel7_kernel_cleanup.changed is defined or rhel89_kernel_cleanup.changed is defined
+    - not disable_reboot|bool
+    - "'---CONTROLER---' not in inventory_hostname"

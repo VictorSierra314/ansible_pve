@@ -1,0 +1,64 @@
+---
+# tasks file for pve_vm_patching
+- name: Check batch variable value
+  assert:
+    that:
+      - batch is in ['a', 'g', 'h', 'i', 'j', 'k', 'l', 'test', 'lab']
+    fail_msg: "ERROR - batch variable accepted value are: a, g, h, i, j, k, l, test."
+  delegate_to: localhost
+  run_once: true
+  when: standalone is not defined or not standalone|bool
+
+- name: Patch all OS
+  include_tasks: 1_os_patching.yml
+  when:
+    - "'Satellite-Capsules' not in tags"
+    - "'Satellite-Server' not in tags"
+
+- name: Patch Satellites capsules instances
+  include_tasks: 2_satellite_patching.yml 
+  when: "'Satellite-Capsules' in tags"
+
+- name: Patch Satellites server instances
+  include_tasks: 2_satellite_patching.yml 
+  when: "'Satellite-Server' in tags"
+
+- name: Check if a reboot is necessary
+  include_tasks: 3_reboot_check.yml
+  when:
+    - rhel_patch_out.changed is defined
+    - rhel_patch_out.changed
+    - not disable_reboot|bool
+    - "'---CONTROLER---' not in inventory_hostname"
+
+- name: Clean previous kernels
+  include_tasks: 4_kernel_cleanup.yml
+  when: 
+    - enable_kernel_cleanup|bool
+    - new_kernel is defined
+    - new_kernel.changed
+    - "'Satellite-Capsules' not in tags"
+    - "'Satellite-Server' not in tags"
+
+- name: Clean leaf packages
+  include_tasks: 5_leaf_packages_cleanup.yml 
+  when: 
+    - new_kernel is defined
+    - new_kernel.changed
+
+- name: Post update service check
+  include_tasks: 6_postupdate_service_check.yml
+  when: 
+    - inventory_hostname not in service_check_exceptions
+    - rhel_patch_out.changed is defined
+    - rhel_patch_out.changed
+
+- name: Run the mail reports
+  include_tasks: 7_email_tasks.yml
+  when: enable_email_reports|bool
+
+- name: Update Redhat insight
+  shell: 'insights-client'
+  when: 
+    - rhel_patch_out.changed
+    - placeholder is defined

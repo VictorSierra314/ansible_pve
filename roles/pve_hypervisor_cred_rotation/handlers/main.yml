@@ -1,0 +1,98 @@
+---
+# handlers file for pve_hypervisor_cred_rotation
+
+- name: DEBUG | Print out key info
+  debug:
+    msg: "{{ item }}"
+  loop: "{{ new_key_out.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  when: 
+    - item.public_key is defined
+    - enable_debug|bool
+
+- name: Display passwords
+  debug:
+    msg: "{{ new_passwords }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Print out priv key info
+  debug:
+    msg: "{{ item.content | b64decode }}"
+  loop: "{{ priv_key_content.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  when: 
+    - item.content is defined
+    - item.item.value.key_name is defined
+    - item.item.value.key_name|length > 0
+
+- name: Send email if test failed
+  become: false
+  mail:
+    host: "{{ smtp_host }}"
+    sender: noreply-mfs@com
+    to: "{{ notification_email }}"
+    subject: "ANSIBLE AUTOMATION - KEY ROTATION FAILURE"
+    body: |
+      Montly SSH key rotation process
+      -------------------------------
+
+      The following host FAILED the connection check:
+      {% for i in ansible_play_batch %}
+      {% if hostvars[i]['trigger_email']|bool %}
+      {{ i }}
+      {% endif %}
+      {% endfor %}
+  delegate_to: localhost
+  run_once: true
+
+- name: Email notification for successfull rotation
+  become: false
+  mail:
+    host: "{{ smtp_host }}"
+    sender: noreply-mfs@com
+    to: "{{ notification_email }}"
+    subject: "ANSIBLE AUTOMATION - KEY ROTATION SUCCESSFULL"
+    body: |
+      Montly SSH key rotation process
+      -------------------------------
+
+      {% if new_passwords is defined %}
+      Some local user PASSWORD have been successfully rotated.
+      Please update KEEPASS.
+      {% endif %}
+
+      {% if priv_key_content.results is defined %}
+      Some local user SSH KEY have been successfully rotated.
+      Please update KEEPASS.
+      {% endif %}
+  delegate_to: localhost
+  run_once: true
+
+- name: Remove temporary priv ssh key files
+  file:
+    path: "/tmp/{{ item.value.key_name }}"
+    state: absent
+  loop: "{{ users_list | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  when: item.value.key_name is defined
+
+- name: Remove temporary pub ssh key files
+  file:
+    path: "/tmp/{{ item.value.key_name }}.pub"
+    state: absent
+  loop: "{{ users_list | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  delegate_to: ---CONTROLER---
+  run_once: true
+  when: item.value.key_name is defined

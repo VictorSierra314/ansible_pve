@@ -1,0 +1,27 @@
+---
+- name: Check if a reboot is necessary (Command will exit 1 as failed if reboot is needed) - RHEL8/9
+  block:
+    - name: Check is a reboot is necessary
+      shell: yum needs-restarting --reboothint
+  rescue:
+    - name: Reboot the host if required
+      reboot:
+      register: new_kernel
+  when: ansible_distribution_major_version != '7'
+
+- name: Check if a reboot is necessary (Command will exit 1 as failed if reboot is needed) - RHEL7
+  block:
+    - name: Check is a reboot is necessary
+      shell: needs-restarting --reboothint
+  rescue:
+    - name: Reboot the host if required
+      reboot:
+      register: new_kernel
+  when: ansible_distribution_major_version == '7'
+
+- name: Wait for all host to be available before moving on
+  wait_for_connection:
+    timeout: 600
+  when: 
+    - new_kernel is defined
+    - new_kernel.changed

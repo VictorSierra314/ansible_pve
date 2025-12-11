@@ -1,0 +1,22 @@
+---
+# vars file for pve_hypervisor_cred_rotation
+org_id: 1 #Default Organization ID
+machine_type_id: 1 #Credential type Machine id
+aap_url:
+aap_token:
+aap_username: ansible
+keytype: rsa
+keybits: 4096
+
+users_list:
+    root:
+      passwd: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'ascii_uppercase', 'digits', '.,-_?!'], length=26) }}"
+      generate_key: false
+    ansible:
+      passwd: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'ascii_uppercase', 'digits', '.,-_?!'], length=16) }}"
+      generate_key: true
+      key_name: ansible_id_rsa
+      key_path:
+        # <PATH>;<OWNER>;<OWNER GROUP>
+        - '/root/.ssh/;root;root'
+        - '/home/admin/.ssh/;admin@com;domain users@com'

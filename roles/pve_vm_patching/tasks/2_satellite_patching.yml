@@ -1,0 +1,21 @@
+---
+- name: Patch satellite instances
+  ignore_errors: true
+  shell: |
+    satellite-maintain update check -y 2>&1
+    echo "======================== Exit code for check: $?"
+    sleep 1
+    satellite-maintain update run -y 2>&1
+    run_rc=$?
+    echo "======================== Exit code for run: $run_rc"
+    if [ "$run_rc" -eq 78 ]; then
+      echo "======= Satellite Nothing to update exit code (code 78), forcing success."
+      exit 0
+    else
+      exit $run_rc
+    fi
+  register: rhel_patch_out
+
+- debug:
+    var: rhel_patch_out
+  when: rhel_patch_out is defined
