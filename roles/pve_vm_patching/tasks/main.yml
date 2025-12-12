@@ -1,64 +1,67 @@
 ---
 # tasks file for pve_vm_patching
-- name: Check batch variable value
+- name: Check host has a valid vmid
   assert:
     that:
-      - batch is in ['a', 'g', 'h', 'i', 'j', 'k', 'l', 'test', 'lab']
-    fail_msg: "ERROR - batch variable accepted value are: a, g, h, i, j, k, l, test."
-  delegate_to: localhost
-  run_once: true
-  when: standalone is not defined or not standalone|bool
+      - vmid is defined
+      - vmid is match('^[1-9][0-9]{2,4}$')
+    fail_msg: "ERROR - {{ inventory_hostname }} does not have a valid VMID"
+    success_msg: "vmid is valid"
+
+- name: Update podman images
+  include_tasks: 1_podman_images_update.yml
+  when: update_podman_images|bool
 
 - name: Patch all OS
-  include_tasks: 1_os_patching.yml
+  include_tasks: 2_os_patching.yml
   when:
-    - "'Satellite-Capsules' not in tags"
-    - "'Satellite-Server' not in tags"
+    - inventory_hostname not in groups[satellite_server_group]
+    - inventory_hostname not in groups[satellite_capsule_group]
 
 - name: Patch Satellites capsules instances
-  include_tasks: 2_satellite_patching.yml 
-  when: "'Satellite-Capsules' in tags"
+  include_tasks: 3_satellite_patching.yml 
+  when: inventory_hostname in groups[satellite_capsule_group]
 
 - name: Patch Satellites server instances
-  include_tasks: 2_satellite_patching.yml 
-  when: "'Satellite-Server' in tags"
+  include_tasks: 3_satellite_patching.yml 
+  when: inventory_hostname not in groups[satellite_server_group]
 
 - name: Check if a reboot is necessary
-  include_tasks: 3_reboot_check.yml
+  include_tasks: 4_reboot_check.yml
   when:
     - rhel_patch_out.changed is defined
     - rhel_patch_out.changed
     - not disable_reboot|bool
-    - "'---CONTROLER---' not in inventory_hostname"
 
 - name: Clean previous kernels
-  include_tasks: 4_kernel_cleanup.yml
+  include_tasks: 5_kernel_cleanup.yml
   when: 
     - enable_kernel_cleanup|bool
     - new_kernel is defined
     - new_kernel.changed
-    - "'Satellite-Capsules' not in tags"
-    - "'Satellite-Server' not in tags"
+    - inventory_hostname not in groups[satellite_server_group]
+    - inventory_hostname not in groups[satellite_capsule_group]
 
 - name: Clean leaf packages
-  include_tasks: 5_leaf_packages_cleanup.yml 
+  include_tasks: 6_leaf_packages_cleanup.yml 
   when: 
     - new_kernel is defined
     - new_kernel.changed
 
 - name: Post update service check
-  include_tasks: 6_postupdate_service_check.yml
+  include_tasks: 7_postupdate_service_check.yml
   when: 
     - inventory_hostname not in service_check_exceptions
     - rhel_patch_out.changed is defined
     - rhel_patch_out.changed
 
 - name: Run the mail reports
-  include_tasks: 7_email_tasks.yml
+  include_tasks: 8_email_tasks.yml
   when: enable_email_reports|bool
 
 - name: Update Redhat insight
   shell: 'insights-client'
   when: 
     - rhel_patch_out.changed
-    - placeholder is defined
+    - force_insight_refresh is defined
+    - ansible_distribution == 'RedHat'

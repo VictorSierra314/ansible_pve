@@ -1,18 +1,44 @@
 ---
 # defaults file for pve_vm_patching
 
-disable_reboot: false
-
 #Email notification list
 enable_email_reports: true
 notification_email:
 sender_email: noreply@com
 smtp_host:
 
-###Patching variables
-batch:
+### Snapshot variables
+snapshot_name:        # text - No space, no -, only _ allowed in proxmox snapshot name
+snapshot_ram:         # boolean - snapshot with the RAM
+# The snapshot is removed with a cron running this playbook again with the 'snaprm' tag
+snapshot_rm_schedule: true  # boolean - enable the task that create a cron to rm the snapshot after the delay set
+snapshot_rm_delay:    # 1 to 24 - Delay in hours to remove the snapshot 
+snapshot_rm_user:     # set the user here that will be used to run the cron (playbook)
+# The snapshot rm is based on the cron name and file, customize it if you want to run multiple patching cycle
+snapshot_cron_file:   # Cron file name
+snapshot_cron_name:   # Cron name commented in the file
+cron_scheduler:       # Hostname of the machine that will be running the playbook
+ansible_bin_path: /usr/bin/ansible-playbook
+
+### Podman variables
+# All variables are defined here as example, but it is best to leave update_podman_images to false,
+# and set it per host with their appropriate list of images and tag, force(frc) default to omit. 
+# All task are running with the same user, if you have root and rootless container, you cannot update both.
+update_podman_images: false     # boolean
+podman_user:                    # Set username running podman
+podman_images_prune: false      # boolean
+podman_images_list:
+  - { img: 'docker.io/path/to/image1', tag: 'latest', frc: 'true' }
+  - { img: 'docker.io/path/to/image2', tag: '1.0.X', frc: 'false' }
+
+### Patching variables
 log_path: /var/log/ansible/pve_vm_patching
-#Print the yum/dnf update output: true or false
+# Print the yum/dnf update output: true or false
 print_patching_output: true
-#Print the yum/dnf utoremove output: true or false
+# Print the yum/dnf utoremove output: true or false
 print_autorm_output: true
+enable_kernel_cleanup: true # boolean - clean up old kernel version above the cap
+kernel_versions_cap:        # number - maximum version of kernel kept
+disable_reboot: false       # boolean - disable reboot check after upgrade
+service_check_exceptions:   # list - host that will not get their services checked after reboot
+  - placeholder

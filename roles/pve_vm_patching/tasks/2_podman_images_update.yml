@@ -1,0 +1,13 @@
+---
+- name: Pull podman images
+  become_user: "{{ podman_user }}"
+  podman_image:
+    name: "{{ item.img }}"
+    tag: "{{ item.tag }}"
+    force: "{{ item.frc | default(omit) }}"
+  loop: "{{ podman_images_list }}"
+
+- name: Ensure no dangling images are left
+  become_user: "{{ podman_user }}"
+  containers.podman.podman_prune:
+    image: "{{ podman_images_prune }}"

@@ -1,13 +1,22 @@
 ---
 - name: Patch all OS
   block:
-    - name: Patch RHEL os
+    - name: RHEL | Upgrade OS
       yum:
         update_cache: true
         name: '*'
         state: latest
       register: rhel_patch_out
-    - name: Print yum update output
+      when: ansible_os_family == 'RedHat'
+
+    - name: DEB | Update & upgrade OS
+      apt:
+        update_cache: true
+        upgrade: yes
+      register: deb_patch_out
+      when: ansible_os_family == 'Debian'
+
+    - name: RHEL | DEBUG | Print yum output
       debug:
         msg: "{{ rhel_patch_out.results }}"
       when: 
@@ -15,8 +24,11 @@
         - rhel_patch_out.changed is defined
         - rhel_patch_out.changed
         - print_patching_output
-    - name: Clean up cache
+    - name: DEB | DEBUG | Print apt output
+      debug:
+    - name: RHEL | Clean up yum cache
       shell: "yum clean all"
+      when: ansible_os_family == 'RedHat'
   rescue:
     - name: Email notification on failure
       mail:

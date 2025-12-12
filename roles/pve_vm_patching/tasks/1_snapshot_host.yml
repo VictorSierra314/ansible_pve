@@ -1,0 +1,62 @@
+---
+- name: SNAP | Snapshot proxmox guest
+  community.proxmox.proxmox_snap:
+    api_user: "{{ pve_api_user }}"
+    api_token_id: "{{ pve_api_token }}"
+    api_token_secret: "{{ pve_api_secret }}"
+    api_host: "{{ pve_api_node }}"
+    vmid: "{{ vmid }}"
+    state: present
+    vmstate: "{{ snapshot_ram | default('false') }}"
+    snapname: "{{ snapshot_name }}"
+  delegate_to: localhost
+
+- name: Schedule snapshot removal cron
+  block:
+    - name: SNAP | Compute snapshot removal date for cron, {{ snapshot_rm_delay }}h delay
+      set_fact:
+        snapshot_rm_datetime: "{{ (ansible_date_time.iso8601 | to_datetime + timedelta(hours=snapshot_rm_delay)) }}"
+        snapshot_rm_minute: "{{ snapshot_rm_datetime.strftime('%M') }}"
+        snapshot_rm_hour:   "{{ snapshot_rm_datetime.strftime('%H') }}"
+        snapshot_rm_day:    "{{ snapshot_rm_datetime.strftime('%d') }}"
+        snapshot_rm_month:  "{{ snapshot_rm_datetime.strftime('%m') }}"
+      delegate_to: localhost
+      run_once: yes
+    
+    - name: SNAP | Schedule snapshot removal cron {{ snapshot_removal_delay }}days later
+      cron:
+        name: "{{ snapshot_cron_name }}"
+        cron_file: "/etc/cron.d/{{ snapshot_cron_file }}"
+        minute: "{{ snapshot_rm_minute }}"
+        hour: "{{ snapshot_rm_hour }}"
+        day: "{{ snapshot_rm_day }}"
+        month: "{{ snapshot_rm_month }}"
+        user: "{{ snapshot_rm_user }}"
+        job: "{{ ansible_bin_path }} {{ ansible_playbook_path }} --tags snaprm > /dev/null"
+        state: present
+      delegate_to: "{{ cron_scheduler }}"
+      run_once: yes
+  when: snapshot_rm_schedule|bool
+
+- name: Snapshot removal triggered by cron
+  tags: [ never, snaprm ]
+  block:
+  - name: SNAPRM | Trigger snapshot removal
+    community.proxmox.proxmox_snap:
+      api_user: "{{ pve_api_user }}"
+      api_token_id: "{{ pve_api_token }}"
+      api_token_secret: "{{ pve_api_secret }}"
+      api_host: "{{ pve_api_node }}"
+      vmid: "{{ vmid }}"
+      state: absent
+      snapname: "{{ snapshot_name }}"
+    delegate_to: localhost
+
+  - name: SNAPRM | Clean up cron file
+    cron:
+      name: "{{ snapshot_cron_name }}"
+      cron_file: "/etc/cron.d/{{ snapshot_cron_file }}"
+      user: "{{ snapshot_rm_user }}"
+      state: absent
+    delegate_to: "{{ cron_scheduler }}"
+    run_once: yes
