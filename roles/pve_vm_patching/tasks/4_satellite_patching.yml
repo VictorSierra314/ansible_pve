@@ -1,5 +1,5 @@
 ---
-- name: Patch satellite instances
+- name: SAT | Patch satellite instances
   ignore_errors: true
   shell: |
     satellite-maintain update check -y 2>&1
@@ -16,6 +16,9 @@
     fi
   register: rhel_patch_out
 
-- debug:
-    var: rhel_patch_out
-  when: rhel_patch_out is defined
+- name: SAT | DEBUG | Print out yum output
+  debug:
+    var: rhel_patch_out.results
+  when: 
+    - rhel_patch_out.results is defined
+    - print_patching_output|default('false')|bool 

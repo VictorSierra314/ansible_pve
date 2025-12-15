@@ -36,7 +36,7 @@
         state: present
       delegate_to: "{{ cron_scheduler }}"
       run_once: yes
-  when: snapshot_rm_schedule|bool
+  when: snapshot_rm_schedule|default('false')|bool
 
 - name: Snapshot removal triggered by cron
   tags: [ never, snaprm ]

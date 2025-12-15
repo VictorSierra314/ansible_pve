@@ -8,33 +8,37 @@
     fail_msg: "ERROR - {{ inventory_hostname }} does not have a valid VMID"
     success_msg: "vmid is valid"
 
+- name: Snapshot host before update
+  include_tasks: 1_snapshot_host.yml
+  when: enable_snapshot|default('true')|bool
+
 - name: Update podman images
-  include_tasks: 1_podman_images_update.yml
-  when: update_podman_images|bool
+  include_tasks: 2_podman_images_update.yml
+  when: update_podman_images|default('false')|bool
 
 - name: Patch all OS
-  include_tasks: 2_os_patching.yml
+  include_tasks: 3_os_patching.yml
   when:
     - inventory_hostname not in groups[satellite_server_group]
     - inventory_hostname not in groups[satellite_capsule_group]
 
 - name: Patch Satellites capsules instances
-  include_tasks: 3_satellite_patching.yml 
+  include_tasks: 4_satellite_patching.yml 
   when: inventory_hostname in groups[satellite_capsule_group]
 
 - name: Patch Satellites server instances
-  include_tasks: 3_satellite_patching.yml 
+  include_tasks: 4_satellite_patching.yml 
   when: inventory_hostname not in groups[satellite_server_group]
 
 - name: Check if a reboot is necessary
-  include_tasks: 4_reboot_check.yml
+  include_tasks: 5_reboot_check.yml
   when:
     - rhel_patch_out.changed is defined
     - rhel_patch_out.changed
-    - not disable_reboot|bool
+    - not disable_reboot|default('false')|bool
 
 - name: Clean previous kernels
-  include_tasks: 5_kernel_cleanup.yml
+  include_tasks: 6_kernel_cleanup.yml
   when: 
     - enable_kernel_cleanup|bool
     - new_kernel is defined
@@ -43,20 +47,20 @@
     - inventory_hostname not in groups[satellite_capsule_group]
 
 - name: Clean leaf packages
-  include_tasks: 6_leaf_packages_cleanup.yml 
+  include_tasks: 7_leaf_packages_cleanup.yml 
   when: 
     - new_kernel is defined
     - new_kernel.changed
 
 - name: Post update service check
-  include_tasks: 7_postupdate_service_check.yml
+  include_tasks: 8_postupdate_service_check.yml
   when: 
     - inventory_hostname not in service_check_exceptions
     - rhel_patch_out.changed is defined
     - rhel_patch_out.changed
 
 - name: Run the mail reports
-  include_tasks: 8_email_tasks.yml
+  include_tasks: 9_email_tasks.yml
   when: enable_email_reports|bool
 
 - name: Update Redhat insight

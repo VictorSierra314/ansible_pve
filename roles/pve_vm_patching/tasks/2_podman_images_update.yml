@@ -1,7 +1,7 @@
 ---
 - name: Pull podman images
   become_user: "{{ podman_user }}"
-  podman_image:
+  containers.podman.podman_image:
     name: "{{ item.img }}"
     tag: "{{ item.tag }}"
     force: "{{ item.frc | default(omit) }}"
@@ -11,3 +11,4 @@
   become_user: "{{ podman_user }}"
   containers.podman.podman_prune:
     image: "{{ podman_images_prune }}"
+  when: podman_images_prune|default('false')|bool
