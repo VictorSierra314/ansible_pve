@@ -1,81 +1,66 @@
-RHEL Patching
-=============
+PVE VM PATCHING
+===============
 
-Levrage ansible to path RHEL host unattended.
+Levrage ansible to upgrade guest virtual machines running in a Proxmox virtual environment.
+
 
 Requirements
 ------------
 
-The variable batch must be defined when running the playbook.
-If not the play will exit on failure.
-```
-ansible-playbook /path/to/playbook.yml -e batch=batchletter
-```
-batch value are: A, H, I, J, K, L, test.
+- gather_facts: true
+Ansible facts must be enable. Some conditions are using them to differenciate RHEL from Debian based OS.
 
-https://moneris365.sharepoint.com/:x:/r/sites/MFSTech/sys_admins/Shared%20Documents/Servers/Server%20Reference%20SME%20and%20delegation.xlsx?d=w65d27fbd3fc742c9b8c4e7347f176d7f&csf=1&web=1&e=GRwHpb
 
 Role Variables
 --------------
 
-Defaults
-- notification_email: #Any email here, will receive the playbook alert and notifications
-- batch: #HAS TO BE DEFINE WHEN RUNNING THE PLAYBOOK, accepted values: A, H, I, J, K, L
-- log_path: #Log path. Must be the folowing format: "{{ log_path }}_batch{{ batch }}_{{ ansible_date_time.date }}.log"
-- print_patching_output: #boolean, print yum update output or not
-- print_autorm_output: #boolean, print yum autoremove output or not
+The following variables must be defined. They are not mentioned in the defaults nor vars sections.
 
-Vars
-- service_check_exceptions: #List here any host that will not run the service check post update
+- vmid
+The vmid will be use to snapshot the VM. It has to be defined per host.
 
+All role variables are in the defaults section with comments.
+
+The PVE API credentials are in the only variables in the vars section.
+
+ 
 Dependencies
 ------------
 
-roles:
-- satellite_cv_publish_and_promote
+Collections:
+	- community.general
+	- community.proxmox
+	- containers.podman
 
-Both roles will work independently but it wont patch anything if satellite content views are not updated prior to patching.
-
-Current schedule publish and promote related content views and environment the day prior to patching
 
 Example Playbook
 ----------------
 
 ```
-- name: RHEL Patching automation - Batch{{ batch }}
-  hosts: "batch{{ batch }}"
+- name: Playbook name
+  hosts: "host1:host2"
   become: yes
   gather_facts: true
   roles:
     - pve_vm_patching
 ```
-The variable batch is mandatory when running the playbook.
-It can be defined in the playbook itself with:
-```
-  vars:
-    batch: A
-  roles:
-    - pve_vm_patching
-```
-Or in the playbook command line:
-```
-/bin/ansible-playbook /root/ansible_data/playbooks/Patching/patching.yml -e batch=A
-```
+
 
 Schedule
 --------
 
-Schedule is a couple of cron, one for each batch
+As you see fit.
 
-/etc/cron.d/ansible_pve_vm_patching
-
-Each cron send ansible output to a log file. The log file path and name must match the log_path variable to received it by email with the report.
 
 Error Handling
 --------------
 
-The first task 'os patching' is mandatory to run anything else.
+The initial task is ensuring that the vmid is defined per host.
+After that all variables present in the defaults or vars section assume to be defined.
+Some have default value (A comment say so).
+
+The 'os patching' section is mandatory to run anything else.
 Based on conditions, the follwing task will play or not.
  
 If any patching task fail, it will not stop the play but issue an email notification.
-Be sure to have a valid email in the variable notification_email.
+Be sure to have a valid email and smtp host in the variable notification_email and smtp_host.

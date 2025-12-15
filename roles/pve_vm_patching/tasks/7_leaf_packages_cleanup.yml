@@ -31,5 +31,5 @@
   reboot:
   when: 
     - rhel7_kernel_cleanup.changed is defined or rhel89_kernel_cleanup.changed is defined
-    - not disable_reboot|bool
+    - enable_reboot|bool
     - "'---CONTROLER---' not in inventory_hostname"

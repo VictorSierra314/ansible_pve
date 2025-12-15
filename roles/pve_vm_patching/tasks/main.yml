@@ -35,7 +35,7 @@
   when:
     - rhel_patch_out.changed is defined
     - rhel_patch_out.changed
-    - not disable_reboot|default('false')|bool
+    - enable_reboot|default('true')|bool
 
 - name: Clean previous kernels
   include_tasks: 6_kernel_cleanup.yml

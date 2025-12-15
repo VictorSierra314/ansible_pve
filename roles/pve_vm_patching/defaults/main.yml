@@ -8,7 +8,7 @@ sender_email:
 smtp_host:
 
 ### Snapshot variables
-enable_snapshot:      # boolean - DEFAULT TRUE - Enable snapshot before update
+enable_snapshot:      # boolean - DEFAULT TRUE - Enable/disable snapshot before update
 snapshot_name:        # text - No space, no -, only _ allowed in proxmox snapshot name
 snapshot_ram:         # boolean - DEFAULT FALSE - snapshot with the RAM
 # The snapshot is removed with a cron running this playbook again with the 'snaprm' tag
@@ -41,7 +41,7 @@ print_autorm_output: true
 enable_kernel_cleanup:    # boolean - DEFAULT FALSE - clean up old kernel version above the cap
 kernel_versions_cap:      # number - maximum version of kernel kept
 enable_pmcache_cleanup:   # boolean - DEFAULT FALSE - Run yum/apt cache clean up after upgrade
-disable_reboot:           # boolean - DEFAULT FALSE - disable reboot check after upgrade
+enable_reboot:            # boolean - DEFAULT TRUE - enable/disable reboot check after upgrade
 after_reboot_delay:       # number - DEFAULT 600 - In minutes, how long the task will wait for the host to reboot before failing
 service_check_exceptions: # list - host that will not get their services checked after reboot
   - placeholder
