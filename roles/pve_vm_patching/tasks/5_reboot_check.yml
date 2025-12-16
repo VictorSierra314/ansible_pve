@@ -3,21 +3,14 @@
   block:
     - name: RHEL | Check is a reboot is necessary
       command: yum needs-restarting --reboothint
-  rescue:
-    - name: RHEL | Reboot the host if required
-      reboot:
-      register: new_kernel
-  when: ansible_os_family == 'RedHat'
-
-- name: Check if a reboot is necessary (Command will exit as failed if reboot is needed)
-  block:
+      when: ansible_os_family == 'RedHat'
     - name: DEB | Check if reboot is necessary
       command: needrestart -r a -p
+      when: ansible_os_family == 'Debian'
   rescue:
-    - name: DEB | Reboot the host if required
+    - name: RHEL&DEB | Reboot the host if required
       reboot:
       register: new_kernel
-  when: ansible_os_family == 'Debian'
 
 - name: Wait for all host to be available before moving on
   wait_for_connection:

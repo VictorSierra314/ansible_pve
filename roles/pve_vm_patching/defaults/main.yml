@@ -1,45 +1,37 @@
 ---
 # defaults file for pve_vm_patching
 
-#Email notification list
-enable_email_reports: true
-notification_email:
-sender_email:
-smtp_host:
-
 ### Snapshot variables
 enable_snapshot:      # boolean - DEFAULT TRUE - Enable/disable snapshot before update
 snapshot_name:        # text - No space, no -, only _ allowed in proxmox snapshot name
-snapshot_ram:         # boolean - DEFAULT FALSE - snapshot with the RAM
+snapshot_ram:         # boolean - DEFAULT FALSE - Enable/disable snapshot with the RAM
 # The snapshot is removed with a cron running this playbook again with the 'snaprm' tag
-snapshot_rm_schedule: # boolean - DEFAULT FALSE - enable the task that create a cron to rm the snapshot after the delay set
-snapshot_rm_delay:    # 1 to 24 - Delay in hours to remove the snapshot 
+snapshot_rm_schedule: # boolean - DEFAULT FALSE - Enable/disable the task that create a cron to rm the snapshot after the delay set
+snapshot_rm_delay:    # Number - Delay in hours to remove the snapshot 
 snapshot_rm_user:     # set the user here that will be used to run the cron (playbook)
 # The snapshot rm is based on the cron name and file, customize it if you want to run multiple patching cycle
 snapshot_cron_file:   # Cron file name
 snapshot_cron_name:   # Cron name commented in the file
-cron_scheduler:       # Inveotry hostname of the machine that will be running the playbook
+cron_scheduler:       # Inventory hostname of the machine that will be running the cron and snap rm playbook
 ansible_bin_path: /usr/bin/ansible-playbook
 
 ### Podman variables
 # All variables are defined here as example, but it is best to leave update_podman_images to false,
 # and set it per host with their appropriate list of images and tag, force(frc) default to omit. 
-# All task are running with the same user, if you have root and rootless container, you cannot update both.
-update_podman_images: # boolean - DEFAULT FALSE
+# All task are running with the same user, if you have root and rootless container in the same host, you cannot update both.
+update_podman_images: # boolean - DEFAULT FALSE - Enable/disable podman images update set in podman_images_list.
 podman_user:          # Set username running podman
-podman_images_prune:  # boolean - DEFAULT FALSE
+podman_images_prune:  # boolean - DEFAULT FALSE - Enable/disable dangling images removal
 podman_images_list:
   - { img: 'docker.io/path/to/image1', tag: 'latest', frc: 'true' }
   - { img: 'docker.io/path/to/image2', tag: '1.0.X', frc: 'false' }
 
 ### Patching variables
 log_path: /var/log/ansible/pve_vm_patching
-# Print the yum/dnf update output: true or false
-print_patching_output:  # boolean - DEFAULT FALSE
-# Print the yum/dnf utoremove output: true or false
-print_autorm_output: true
+print_patching_output:    # boolean - DEFAULT FALSE - Enable/disable upgrade task output display
+print_autorm_output:      # boolean - DEFAULT FALSE - Enable/disable autoremove debug output
 enable_kernel_cleanup:    # boolean - DEFAULT FALSE - clean up old kernel version above the cap
-kernel_versions_cap:      # number - maximum version of kernel kept
+kernel_versions_cap:      # number - maximum version of kernel kept (RHEL only)
 enable_pmcache_cleanup:   # boolean - DEFAULT FALSE - Run yum/apt cache clean up after upgrade
 enable_reboot:            # boolean - DEFAULT TRUE - enable/disable reboot check after upgrade
 after_reboot_delay:       # number - DEFAULT 600 - In minutes, how long the task will wait for the host to reboot before failing

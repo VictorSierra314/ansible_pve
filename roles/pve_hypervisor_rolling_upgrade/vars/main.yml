@@ -10,6 +10,7 @@ pve_api_secret: #API user token secret
 pve_check_cert: #boolean - Check hypervisor SSL cert
 
 # Communication related variables
+notification_email:   #Email address will receive failure warning and reports
 notification_sender:  #Sender email address
 enable_report:        #boolean - Final report sent by email
 smtp_host:            #SMTP server IP use to relay email

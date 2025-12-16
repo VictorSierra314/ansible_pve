@@ -1,45 +1,29 @@
 ---
 - name: Clean previous kernels
   block:
-    - name: Clean up old kernel in RHEL7
-      shell: package-cleanup --oldkernels --count=1 -y
-      register: rhel7_kernel_cleanup
-      when: 
-        - ansible_distribution_major_version == '7'
-    - name: Clean up old kernel in RHEL8 and RHEL9
-      shell: dnf remove --oldinstallonly --setopt installonly_limit=2 -y
-      register: rhel89_kernel_cleanup
-      when: 
-        - ansible_distribution_major_version is in ['8', '9']
-        - "'kernel' in rhel_patch_out.results"
+    - name: RHEL | Clean up old kernel
+      shell: "dnf remove --oldinstallonly --setopt installonly_limit={{ kernel_versions_cap }} -y"
+      register: rhel_kernel_cleanup
+      when: "'kernel' in rhel_patch_out.results"
+
   rescue:
-    - name: Email notification on failure for rhel7
-      mail:
-        host: "{{ smtp_host }}"
-        to: "{{ notification_email }}"
-        sender: "{{ sender_email }}"
-        subject: "ANSIBLE AUTOMATION - ERROR - {{ inventory_hostname }} kernel cleanup failed"
-        body: |
-          Ansible FAILED to clean up {{ inventory_hostname }} old kernel versions
-          Date: {{ ansible_date_time.date }}
-          Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
-          Output:
-          {{ rhel7_kernel_cleanup | to_nice_json }}
-      delegate_to: localhost
-      when: 
-        - ansible_distribution_major_version == '7'
     - name: Email notification on failure for rhel8/9
       mail:
-        host: "{{ smtp_host }}"
+        from: "{{ notification_sender }}"
         to: "{{ notification_email }}"
-        sender: "{{ sender_email }}"
-        subject: "ANSIBLE AUTOMATION - ERROR - {{ inventory_hostname }} kernel cleanup failed"
+        host: "{{ smtp_host }}"
+        port: "{{ smtp_port }}"
+        username: "{{ smtp_user | default(omit) }}"
+        password: "{{ smtp_password | default(omit) }}"
+        attach: "{{ ansible_log.files[0].path | default(omit) }}"
+        subject: "PVE VM Upgrade - ERROR - {{ inventory_hostname }} kernel cleanup failed"
         body: |
+          ---------------------------
+          {{ inventory_hostname }} - Upgrade FAILED
+          ---------------------------
           Ansible FAILED to clean up {{ inventory_hostname }} old kernel versions
           Date: {{ ansible_date_time.date }}
           Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
           Output:
-          {{ rhel89_kernel_cleanup | to_nice_json }}
+          {{ rhel_kernel_cleanup | to_nice_json }}
       delegate_to: localhost
-      when: 
-        - ansible_distribution_major_version is in ['8', '9']

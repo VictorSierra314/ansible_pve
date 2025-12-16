@@ -9,6 +9,7 @@
     state: present
     vmstate: "{{ snapshot_ram | default('false') }}"
     snapname: "{{ snapshot_name }}"
+    validate_cets: "{{ pve_check_cert | default('false') }}"
   delegate_to: localhost
 
 - name: Schedule snapshot removal cron
@@ -50,6 +51,7 @@
       vmid: "{{ vmid }}"
       state: absent
       snapname: "{{ snapshot_name }}"
+      validate_cets: "{{ pve_check_cert | default('false') }}"
     delegate_to: localhost
 
   - name: SNAPRM | Clean up cron file

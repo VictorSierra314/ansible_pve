@@ -1,35 +1,50 @@
 ---
 - name: Clean leaf packages
   block:
-    - name: Clean leaf packages
+    - name: RHEL | Clean leaf packages
       yum:
         autoremove: true
-      register: rhel_autorm_out
-    - name: Print yum autoremove output
+      register: autorm_out
+      when: ansible_os_family == 'RedHat'
+
+    - name: DEB | Clean leaf packages
+      apt:
+        purge: true
+        autoremove: true
+      register: autorm_out
+      when: ansible_os_family == 'Debian'
+
+    - name: RHEL&DEB | Print autoremove output
       debug:
-        msg: "{{ rhel_autorm_out.results }}"
+        msg: "{{ autorm_out }}"
       when: 
-        - rhel_autorm_out.changed is defined
-        - rhel_autorm_out.changed
-        - print_autorm_output
+        - autorm_out.changed is defined
+        - autorm_out.changed
+        - print_autorm_output|default('false')|bool
   rescue:
     - name: Email notification on failure
       mail:
-        host: "{{ smtp_host }}"
-        sender: "{{ sender_email }}"
+        from: "{{ notification_sender }}"
         to: "{{ notification_email }}"
-        subject: "ANSIBLE AUTOMATION - ERROR - {{ inventory_hostname }} autoremove command failed"
+        host: "{{ smtp_host }}"
+        port: "{{ smtp_port }}"
+        username: "{{ smtp_user | default(omit) }}"
+        password: "{{ smtp_password | default(omit) }}"
+        attach: "{{ ansible_log.files[0].path | default(omit) }}"
+        subject: "PVE VM Upgrade - ERROR - {{ inventory_hostname }} autoremove command FAILED"
         body: |
-          Ansible FAILED to autoremove leaf packages in {{ inventory_hostname }}
+          ---------------------------
+          {{ inventory_hostname }} - Upgrade FAILED
+          ---------------------------
+          Ansible FAILED to remove leaf packages in {{ inventory_hostname }}
           Date: {{ ansible_date_time.date }}
           Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
           Output:
-          {{ rhel_autorm_out  | to_nice_json }}
+          {{ autorm_out  | to_nice_json }}
       delegate_to: localhost
 
-- name: If kernel clean up ran do a last reboot
+- name: RHEL | If kernel clean up ran do a last reboot
   reboot:
   when: 
-    - rhel7_kernel_cleanup.changed is defined or rhel89_kernel_cleanup.changed is defined
+    - rhel_kernel_cleanup.changed is defined
     - enable_reboot|bool
-    - "'---CONTROLER---' not in inventory_hostname"

@@ -8,6 +8,7 @@ Requirements
 ------------
 
 - gather_facts: true
+
 Ansible facts must be enable. Some conditions are using them to differenciate RHEL from Debian based OS.
 
 
@@ -17,6 +18,7 @@ Role Variables
 The following variables must be defined. They are not mentioned in the defaults nor vars sections.
 
 - vmid
+
 The vmid will be use to snapshot the VM. It has to be defined per host.
 
 All role variables are in the defaults section with comments.
@@ -32,6 +34,8 @@ Collections:
 	- community.proxmox
 	- containers.podman
 
+Package:
+	- needrestart (debian based OS only - Use to check if a restart is needed)
 
 Example Playbook
 ----------------
