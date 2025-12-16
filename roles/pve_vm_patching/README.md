@@ -28,7 +28,7 @@ The vmid will be use to snapshot the VM. It has to be defined per host.
 
 All role variables are in the defaults section with comments.
 
-The PVE API credentials are in the only variables in the vars section.
+The PVE API credentials and SMTP info are in the only variables in the vars section.
 
 
 Dependencies
@@ -55,12 +55,6 @@ Example Playbook
 ```
 
 
-Schedule
---------
-
-As you see fit.
-
-
 Error Handling
 --------------
 
@@ -73,3 +67,9 @@ Based on conditions, the follwing task will play or not.
 
 If any patching task fail, it will not stop the play but issue an email notification.
 Be sure to have a valid email and smtp host in the variable notification_email and smtp_host.
+
+
+License
+-------
+
+BSD
