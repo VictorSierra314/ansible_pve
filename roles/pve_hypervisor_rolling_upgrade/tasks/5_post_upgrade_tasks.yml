@@ -20,7 +20,7 @@
     echo "HOST: {{ inventory_hostname | upper }}"
     echo "LIVE PVE VERSION: $(pveversion)"
     echo "RUNNING KERNEL: $(uname -r)"
-    echo "HOST REBOOTED: {% if kernel_version_check.stdout != '2' %}YES{% else %}NO{% endif %}"
+    echo "HOST REBOOTED: {% if node_reboot_out is defined and node_reboot_out.changed %}YES{% else %}NO{% endif %}"
     echo "CEPH STATUS:"
     ceph -s
   register: last_check_out

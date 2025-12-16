@@ -1,5 +1,7 @@
 inventories/*
-playbooks/*
-my_vars/*
+/my_vars/*
 *-artifact-*
-ansible-navigator.log
+/*.log
+/*.yml
+/*.yaml
+/*.txt

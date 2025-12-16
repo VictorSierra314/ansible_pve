@@ -1,7 +1,0 @@
----
-- name: pve_hypervisor_rolling_upgrade
-  hosts: "{{ hosts_list }}"
-  become: true
-  serial: 1
-  roles:
-    - pve_hypervisor_rolling_upgrade

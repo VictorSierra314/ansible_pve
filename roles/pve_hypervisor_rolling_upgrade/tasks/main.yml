@@ -31,7 +31,8 @@
 
     - name: Reboot the node
       reboot:
-        reboot_timeout: "{{ reboot_delay | default('1800') }}}"
+        reboot_timeout: "{{ reboot_delay | default('1800') }}"
+      register: node_reboot_out
       when: 
         - reboot_node | default('true') | bool
         - reboot_check.stat.exists or kernel_version_check.stdout != '2'
@@ -69,7 +70,8 @@
 
     - name: Reboot the node
       reboot:
-        reboot_timeout: "{{ reboot_delay | default('1800') }}}"
+        reboot_timeout: "{{ reboot_delay | default('1800') }}"
+      register: node_reboot_out
       when: 
         - reboot_node | default('true') | bool
         - reboot_check.stat.exists or kernel_version_check.stdout != '2'
