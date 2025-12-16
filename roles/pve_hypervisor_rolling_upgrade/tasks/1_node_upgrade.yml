@@ -35,7 +35,7 @@
 - name: Display pve upgrade output
   debug:
     var: pve_upgrade.stdout_lines
-  when: enable_debug
+  when: enable_debug | default('false') | bool
 
 - name: Check if reboot is necessary
   stat:

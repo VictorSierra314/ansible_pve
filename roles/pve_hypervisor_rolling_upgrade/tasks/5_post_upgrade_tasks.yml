@@ -33,9 +33,7 @@
       ---------------------------
       {{ last_check_out.stdout_lines | to_nice_yaml }}
   delegate_to: localhost
-  when: 
-    - not enable_report|bool
-    - enable_debug|bool
+  when: not enable_report | default('true') | bool or enable_debug | default('false') | bool
 
 - name: Email upgrade report to {{ notification_email }}
   mail:
@@ -53,4 +51,4 @@
       ---------------------------
       {{ last_check_out.stdout_lines | to_nice_yaml }}
   delegate_to: localhost
-  when: enable_report|bool
+  when: enable_report | default ('true') | bool

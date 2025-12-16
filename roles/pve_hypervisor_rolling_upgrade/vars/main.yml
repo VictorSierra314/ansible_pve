@@ -2,24 +2,24 @@
 # vars file for pve_hypervisor_rolling_upgrade
 
 ### Variables for Proxmox API calls
-#pve_api_node:   #Hostname of the api receiver hypervisor
-#pve_domain:     #Your domain
-#pve_api_user:   #API user ID
-#pve_api_token:  #API user token ID
-#pve_api_secret: #API user token secret
-#pve_check_cert: #boolean - Check hypervisor SSL cert
+#pve_api_node:   # Hostname of the api receiver hypervisor
+#pve_domain:     # Your domain
+#pve_api_user:   # API user ID
+#pve_api_token:  # API user token ID
+#pve_api_secret: # API user token secret
+#pve_check_cert: # boolean - DEFAULT FALSE - Check hypervisor SSL cert
 
 ### Communication related variables
-#notification_email:   #Email address will receive failure warning and reports
-#notification_sender:  #Sender email address
-#enable_report:        #boolean - Final report sent by email
-#smtp_host:            #SMTP server IP use to relay email
-#smtp_port:            #SMTP server port use to relay email
-#smtp_user:            #SMTP user name (omited by default)
-#smtp_password:        #SMTP user password (omited by default)
+#notification_email:   # Email address will receive failure warning and reports
+#notification_sender:  # Sender email address
+#enable_report:        # boolean - DEFAULT TRUE - Final report sent by email
+#smtp_host:            # SMTP server IP use to relay email
+#smtp_port:            # SMTP server port use to relay email
+#smtp_user:            # SMTP user name (omited by default)
+#smtp_password:        # SMTP user password (omited by default)
 
 ### Vars for migration parameters
-#migration_loop_delay:   #Pause in second in between each migration api call
-#migration_check_delay:  #Pause in second between each check retry post migration
-#migration_check_loop:   #Numbers of post migration verification check 
-#exit_on_migrate_back_fail:  #Boolean - If VM migration back to node fail, exit the play
+#migration_loop_delay:        # Number - DEFAULT 5 - Pause in second in between each migration api call
+#migration_check_delay:       # Number - DEFAULT 10 - Pause in second between each check retry post migration
+#migration_check_loop:        # Number - DEFAULT 10 - Numbers of post migration verification check 
+#exit_on_migrate_back_fail:   # Boolean - DEFAULT FALSE - If VM migration back to node fail, exit the play

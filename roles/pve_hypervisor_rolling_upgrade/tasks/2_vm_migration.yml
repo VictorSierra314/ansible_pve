@@ -5,7 +5,7 @@
     method: GET
     headers:
       Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
-    validate_certs: "{{ pve_check_cert }}"
+    validate_certs: "{{ pve_check_cert | default('false') }}"
   register: node_vms_list
   delegate_to: localhost
 
@@ -15,7 +15,7 @@
     method: GET
     headers:
       Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
-    validate_certs: "{{ pve_check_cert }}"
+    validate_certs: "{{ pve_check_cert | default('false') }}"
   register: node_lxc_list
   delegate_to: localhost
 
@@ -26,7 +26,7 @@
     method: POST
     headers:
       Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
-    validate_certs: "{{ pve_check_cert }}"
+    validate_certs: "{{ pve_check_cert | default('false') }}"
     body_format: form-urlencoded
     body:
       target: "{% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
@@ -35,7 +35,7 @@
     return_content: true
   loop: "{{ node_lxc_list.json.data }}"
   loop_control:
-    pause: "{{ migration_loop_delay }}"
+    pause: "{{ migration_loop_delay | default('5') }}"
     label: "{{ item.vmid }} - {{ item.name }}, to {% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
   when:
     - node_lxc_list.json.data[0] is defined
@@ -52,10 +52,10 @@
     vmid: "{{ item.vmid }}"
     migrate: true
     node: "{% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
-    validate_certs: "{{ pve_check_cert }}"
+    validate_certs: "{{ pve_check_cert | default('false') }}"
   loop: "{{ node_vms_list.json.data }}"
   loop_control:
-    pause: "{{ migration_loop_delay }}"
+    pause: "{{ migration_loop_delay | default('5') }}"
     label: "{{ item.vmid }} - {{ item.name }}, to {% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
   when:
     - node_vms_list.json.data[0] is defined
@@ -64,14 +64,13 @@
 
 - name: Check VMs migration
   block:
-
     - name: Check {{ inventory_hostname }} remaining LXC
       uri:
         url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/lxc"
         method: GET
         headers:
           Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
-        validate_certs: "{{ pve_check_cert }}"
+        validate_certs: "{{ pve_check_cert | default('false') }}"
       register: migration_lxc_check
       until: >
         ( 
@@ -84,8 +83,8 @@
             | length
           ) == 0
         )
-      retries: "{{ migration_check_loop }}"
-      delay: "{{ migration_check_delay }}"
+      retries: "{{ migration_check_loop | default('10') }}"
+      delay: "{{ migration_check_delay | default('10') }}"
 
     - name: Check {{ inventory_hostname }} remaining VMs
       uri:
@@ -93,7 +92,7 @@
         method: GET
         headers:
           Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
-        validate_certs: "{{ pve_check_cert }}"
+        validate_certs: "{{ pve_check_cert | default('false') }}"
       register: migration_vm_check
       until: >
         ( 
@@ -106,12 +105,12 @@
             | length
           ) == 0
         )
-      retries: "{{ migration_check_loop }}"
-      delay: "{{ migration_check_delay }}"
+      retries: "{{ migration_check_loop | default('10') }}"
+      delay: "{{ migration_check_delay | default('10') }}"
 
   rescue:
-
-    - debug:
+    - name: Migration failure debug output
+      debug:
         msg: |
           ---------------------------
           {{ inventory_hostname }} - VMs/LXC migration FAILED
@@ -128,7 +127,7 @@
           {% endif %}
           {% endfor %}
       delegate_to: localhost
-      when: enable_debug|bool
+      when: enable_debug | default('false') | bool
 
     - name: Send notification with log in case of failure
       mail:

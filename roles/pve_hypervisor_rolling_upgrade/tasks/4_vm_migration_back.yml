@@ -9,7 +9,7 @@
     method: POST
     headers:
       Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
-    validate_certs: "{{ pve_check_cert }}"
+    validate_certs: "{{ pve_check_cert | default('false') }}"
     body_format: form-urlencoded
     body:
       target: "{{ inventory_hostname | lower }}"
@@ -18,7 +18,7 @@
     return_content: true
   loop: "{{ node_lxc_list.json.data }}"
   loop_control:
-    pause: "{{ migration_loop_delay }}"
+    pause: "{{ migration_loop_delay | default('5') }}"
     label: "{{ item.vmid }} - {{ item.name }}"
   when:
     - node_lxc_list.json.data[0] is defined
@@ -35,10 +35,10 @@
     vmid: "{{ item.vmid }}"
     migrate: true
     node: "{{ inventory_hostname | lower }}"
-    validate_certs: "{{ pve_check_cert }}"
+    validate_certs: "{{ pve_check_cert | default('false') }}"
   loop: "{{ node_vms_list.json.data }}"
   loop_control:
-    pause: "{{ migration_loop_delay }}"
+    pause: "{{ migration_loop_delay | default('5') }}"
     label: "{{ item.vmid }} - {{ item.name }}"
   when:
     - node_vms_list.json.data[0] is defined
@@ -79,7 +79,7 @@
         method: GET
         headers:
           Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
-        validate_certs: "{{ pve_check_cert }}"
+        validate_certs: "{{ pve_check_cert | default('false') }}"
       register: lxc_back_check
       until: >
         (
@@ -96,8 +96,8 @@
             )
           ) == expected_lxc_map
         )
-      retries: "{{ migration_check_loop }}"
-      delay: "{{ migration_check_delay }}"
+      retries: "{{ migration_check_loop | default('10') }}"
+      delay: "{{ migration_check_delay | default('10') }}"
 
     - name: Re-check VMs state on {{ inventory_hostname }} (after migration back)
       uri:
@@ -105,7 +105,7 @@
         method: GET
         headers:
           Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
-        validate_certs: "{{ pve_check_cert }}"
+        validate_certs: "{{ pve_check_cert | default('false') }}"
       register: vm_back_check
       until: >
         (
@@ -122,8 +122,8 @@
             )
           ) == expected_vm_map
         )
-      retries: "{{ migration_check_loop }}"
-      delay: "{{ migration_check_delay }}"
+      retries: "{{ migration_check_loop | default('10') }}"
+      delay: "{{ migration_check_delay | default('10') }}"
 
   rescue:
 
@@ -205,7 +205,7 @@
 
     - name: Exit playbook
       fail:
-        msg: "ERROR - VMs are still present in {{ inventory_hostname }}"
-      when: exit_on_migrate_back_fail|bool
+        msg: "ERROR - Migration back failed - Not all VM are back to {{ inventory_hostname }}"
+      when: exit_on_migrate_back_fail | default('false') | bool
 
 ########### END of Block

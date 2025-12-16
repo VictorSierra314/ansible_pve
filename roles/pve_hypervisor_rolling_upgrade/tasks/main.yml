@@ -20,33 +20,35 @@
     - name: Migrate all VM before the reboot
       include_tasks: 2_vm_migration.yml
       when:
-        - migrate_vm | bool
+        - migrate_vm | default('true') | bool
         - reboot_check.stat.exists or kernel_version_check.stdout != '2'
 
     - name: Set Ceph flags
       include_tasks: 3_set_ceph_flags.yml
       when:
-        - ceph_storage|bool
+        - ceph_storage | default('false') | bool
         - reboot_check.stat.exists or kernel_version_check.stdout != '2'
 
     - name: Reboot the node
       reboot:
-        reboot_timeout: 1800
-      when: reboot_check.stat.exists or kernel_version_check.stdout != '2'
+        reboot_timeout: "{{ reboot_delay | default('1800') }}}"
+      when: 
+        - reboot_node | default('true') | bool
+        - reboot_check.stat.exists or kernel_version_check.stdout != '2'
 
     - name: Remove unused dependency
       ansible.builtin.apt:
         autoremove: true
       when:
         - pve_upgrade.changed
-        - rm_old_dependency | bool
+        - rm_old_dependency | default('false') | bool
 
     - name: Migrate VM back to the node
       include_tasks: 4_vm_migration_back.yml
       when:
-        - migrate_vm | bool
+        - migrate_vm | default('true') | bool
         - reboot_check.stat.exists or kernel_version_check.stdout != '2'
-  when: upgrade_with_vms | bool
+  when: upgrade_with_vms | default('true') | bool
 
 # ============================================================
 # BLOCK 2: Migrate all VMs first, then upgrade node
@@ -54,7 +56,7 @@
 - block:
     - name: Migrate all VM before upgrade
       include_tasks: 2_vm_migration.yml
-      when: migrate_vm | bool
+      when: migrate_vm | default('true') | bool
 
     - name: Node upgrade
       include_tasks: 1_node_upgrade.yml
@@ -62,25 +64,27 @@
     - name: Set Ceph flags
       include_tasks: 3_set_ceph_flags.yml
       when:
-        - ceph_storage | bool
+        - ceph_storage | default('false') | bool
         - reboot_check.stat.exists or kernel_version_check.stdout != '2'
 
     - name: Reboot the node
       reboot:
-        reboot_timeout: 1800
-      when: reboot_check.stat.exists or kernel_version_check.stdout != '2'
+        reboot_timeout: "{{ reboot_delay | default('1800') }}}"
+      when: 
+        - reboot_node | default('true') | bool
+        - reboot_check.stat.exists or kernel_version_check.stdout != '2'
 
     - name: Remove unused dependency
       ansible.builtin.apt:
         autoremove: true
       when:
         - pve_upgrade.changed
-        - rm_old_dependency | bool
+        - rm_old_dependency | default('false') | bool
 
     - name: Migrate VM back to the node
       include_tasks: 4_vm_migration_back.yml
-      when: migrate_vm|bool
-  when: not upgrade_with_vms | bool
+      when: migrate_vm | default('true') | bool
+  when: not upgrade_with_vms | default('true') | bool
 
 - name: Post upgrade tasks, checks, ceph flag disable, vm migration back to node
   include_tasks: 5_post_upgrade_tasks.yml

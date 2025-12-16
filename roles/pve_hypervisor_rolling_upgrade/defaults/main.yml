@@ -2,27 +2,27 @@
 # defaults file for pve_hypervisor_rolling_upgrade
 
 ### Troubleshooting variables
-#enable_debug: false
-#run_log_folder:       #Path on the localhost where the playbook output is saved
-#run_log_name:         #Playbook output log filename pattern
+#enable_debug:    # boolean - DEFAULT FALSE - Enable/disable global debut tasks output
+#run_log_folder:  # Path on the localhost where the playbook output is saved
+#run_log_name:    # Playbook output log filename pattern
 
 ### Ceph variables if you are using ceph pool
-#ceph_storage enable/disable ceph related tasks
-#ceph_storage: true
+#ceph_storage:      # boolean - DEFAULT FALSE - ceph_storage enable/disable ceph related tasks
 #ceph_flags:
 #  - noout
 #  - norecover
 #  - norebalance
 
 ### Node upgrade variables
-# boolean - true upgrade node then migrate VM if reboot necessary, false migrade vm before upgrade
-#upgrade_with_vm: true
-# boolean - Run VM Migration tasks
-#migrate_vm: true
+#upgrade_with_vm:   # boolean - DEFAULT TRUE - Upgrade node then migrate VM if reboot necessary, false migrade vm before upgrade
+#rm_old_dependency: # boolean - DEFAULT FALSE - Run autoremove after the host reboot
+#reboot_node:       # boolean - DEFAULT TRUE - Enable/disable proxmox node reboot if needed after the upgrade
+#reboot_delay:      # boolean - DEFAULT 1800 - Time in seconds given to the node to reboot before the task fail
+
+### VM migration variables
+#migrate_vm:        # boolean - DEFAULT TRUE - Run VM Migration tasks
 # Set a node to migrade odd VM(based on vmid) and another for even VM(based on vmid)
 # This way you split the worload of your node beeing upgraded in 2 other node
 # The node (pve hypervisor) name need to match the ID in your cluster
 #target_node_odd: "{% if inventory_hostname == <your_main_node> %}<your_other_node>{% else %}<your_main_node>{% endif %}"
 #target_node_even: "{% if inventory_hostname == <your_main_node> %}<your_other_node>{% else %}<your_main_node>{% endif %}"
-# boolean - Run autoremove after the host reboot
-#rm_old_dependency: true
