@@ -2,18 +2,18 @@
 # vars file for pve_vm_patching
 
 ### Variables for Proxmox API calls
-pve_api_node:   #Hostname of the api receiver hypervisor
-pve_domain:     #Your domain
-pve_api_user:   #API user ID
-pve_api_token:  #API user token ID
-pve_api_secret: #API user token secret
-pve_check_cert: #boolean - DEFAULT FALSE - Check hypervisor SSL cert
+#pve_api_node:   #Hostname of the api receiver hypervisor
+#pve_domain:     #Your domain
+#pve_api_user:   #API user ID
+#pve_api_token:  #API user token ID
+#pve_api_secret: #API user token secret
+#pve_check_cert: #boolean - DEFAULT FALSE - Check hypervisor SSL cert
 
 ### Communication related variables
-notification_email:   #Email address will receive failure warnings and final report
-notification_sender:  #Sender email address
-enable_report:        #boolean - DEFAULT TRUE - Final report sent by email
-smtp_host:            #SMTP server IP use to relay email
-smtp_port:            #SMTP server port use to relay email
-smtp_user:            #SMTP user name (omited by default)
-smtp_password:        #SMTP user password (omited by default)
+#notification_email:   #Email address will receive failure warnings and final report
+#notification_sender:  #Sender email address
+#enable_report:        #boolean - DEFAULT TRUE - Final report sent by email
+#smtp_host:            #SMTP server IP use to relay email
+#smtp_port:            #SMTP server port use to relay email
+#smtp_user:            #SMTP user name (omited by default)
+#smtp_password:        #SMTP user password (omited by default)

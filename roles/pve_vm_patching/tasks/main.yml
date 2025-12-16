@@ -24,11 +24,11 @@
 
 - name: Patch Satellites capsules instances
   include_tasks: 4_satellite_patching.yml 
-  when: inventory_hostname in groups[satellite_capsule_group]
+  when: inventory_hostname in groups['satellite_capsule_group']
 
 - name: Patch Satellites server instances
   include_tasks: 4_satellite_patching.yml 
-  when: inventory_hostname not in groups[satellite_server_group]
+  when: inventory_hostname not in groups['satellite_server_group']
 
 - name: Check if a reboot is necessary
   include_tasks: 5_reboot_check.yml
@@ -44,8 +44,8 @@
     - ansible_os_family == 'RedHat'
     - new_kernel is defined
     - new_kernel.changed
-    - inventory_hostname not in groups[satellite_server_group]
-    - inventory_hostname not in groups[satellite_capsule_group]
+    - inventory_hostname not in groups['satellite_server_group']
+    - inventory_hostname not in groups['satellite_capsule_group']
 
 - name: Clean leaf packages
   include_tasks: 7_leaf_packages_cleanup.yml 

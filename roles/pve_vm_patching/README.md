@@ -11,6 +11,11 @@ Requirements
 
 Ansible facts must be enable. Some conditions are using them to differenciate RHEL from Debian based OS.
 
+- satellite_server_group & satellite_capsule_group
+
+These two group name are used to match conditions and patch satellite and capsules guests.
+They are not variables so either define them in your inventory or rename them in the role.
+
 
 Role Variables
 --------------
@@ -25,7 +30,7 @@ All role variables are in the defaults section with comments.
 
 The PVE API credentials are in the only variables in the vars section.
 
- 
+
 Dependencies
 ------------
 
@@ -65,6 +70,6 @@ Some have default value (A comment say so).
 
 The 'os patching' section is mandatory to run anything else.
 Based on conditions, the follwing task will play or not.
- 
+
 If any patching task fail, it will not stop the play but issue an email notification.
 Be sure to have a valid email and smtp host in the variable notification_email and smtp_host.
