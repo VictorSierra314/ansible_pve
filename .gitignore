@@ -2,3 +2,4 @@ inventories/*
 playbooks/*
 my_vars/*
 *-artifact-*
+ansible-navigator.log
