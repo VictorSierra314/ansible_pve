@@ -1,2 +1,4 @@
 inventories/*
+playbooks/*
+my_vars/*
 *-artifact-*

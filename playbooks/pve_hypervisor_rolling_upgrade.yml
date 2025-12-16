@@ -1,6 +1,6 @@
 ---
 - name: pve_hypervisor_rolling_upgrade
-  hosts: labpxmx*
+  hosts: "{{ hosts_list }}"
   become: true
   serial: 1
   roles:
