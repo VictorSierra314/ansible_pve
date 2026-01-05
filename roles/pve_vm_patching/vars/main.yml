@@ -17,3 +17,4 @@
 #smtp_port:            #SMTP server port use to relay email
 #smtp_user:            #SMTP user name (omited by default)
 #smtp_password:        #SMTP user password (omited by default)
+#smtp_sec_mode:        #SMTP encryption mode (omited by default)

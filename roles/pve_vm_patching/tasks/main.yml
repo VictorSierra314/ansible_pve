@@ -1,6 +1,7 @@
 ---
 # tasks file for pve_vm_patching
 - name: Snapshot host before update
+  tags: [ snaprm ]
   include_tasks: 1_snapshot_host.yml
   when: enable_snapshot|default('true')|bool
 
@@ -20,7 +21,7 @@
 
 - name: Patch Satellites server instances
   include_tasks: 4_satellite_patching.yml 
-  when: inventory_hostname not in groups['satellite_server_group']
+  when: inventory_hostname in groups['satellite_server_group']
 
 - name: Check if a reboot is necessary
   include_tasks: 5_reboot_check.yml
@@ -32,7 +33,7 @@
 - name: Clean previous kernels
   include_tasks: 6_kernel_cleanup.yml
   when: 
-    - enable_kernel_cleanup|bool
+    - enable_kernel_cleanup|default('false')|bool
     - ansible_os_family == 'RedHat'
     - new_kernel is defined
     - new_kernel.changed
@@ -69,6 +70,7 @@
     password: "{{ smtp_password | default(omit) }}"
     attach: "{{ ansible_log.files[0].path | default(omit) }}"
     subject: "PVE VM Upgrade - REPORT"
+    secure: "{{ smtp_sec_mode | default(omit) }}"
     body: |
       ---------------------------
       VM Upgrade final REPORT
@@ -80,32 +82,35 @@
       {% endif %}
       ---------------------------
       Servers list:
-      {% for i in ansible_play_batch and ansible_os_family == 'RedHat' %}
-        - {{ i }}, Patched: {% if hostvars[i]['rhel_patch_out']['changed'] is defined and hostvars[i]['rhel_patch_out']['changed'] %}YES{% else %}NO{% endif %}, Rebooted: {% if hostvars[i]['new_kernel'] is defined %}YES{% else %}NO{% endif %} 
+      {% for host in ansible_play_batch %}
+      {% set os_family = hostvars[host]['ansible_os_family'] %}
+      {% if os_family == 'RedHat' %}
+      - {{ host }}: Patched: {% if hostvars[host]['rhel_patch_out'] is defined and hostvars[host]['rhel_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %} 
+      {% elif os_family == 'Debian' %}
+      - {{ host }}: Patched: {% if hostvars[host]['deb_patch_out'] is defined and hostvars[host]['deb_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %} 
+      {% endif %}
       {% endfor %}
-      {% for j in ansible_play_batch and ansible_os_family == 'Debian' %}
-        - {{ j }}, Patched: {% if hostvars[j]['deb_patch_out']['changed'] is defined and hostvars[j]['deb_patch_out']['changed'] %}YES{% else %}NO{% endif %}, Rebooted: {% if hostvars[j]['new_kernel'] is defined %}YES{% else %}NO{% endif %} 
-      {% endfor %}
-
-      ERRORS, if there are any, will be listed bellow:
-      {% for i in ansible_play_hosts_all %}
-      {% if hostvars[i]['vm_info'] is defined and hostvars[i]['vm_info'].failed is defined and hostvars[i]['vm_info'].failed|bool %}
-      {{ i }} - Could not find the host in VMWare, snapshot not taken
+    
+       ERRORS, if there are any:
+      {% for host in ansible_play_hosts_all %}
+      {% set hv = hostvars[host] %}
+      {% if hv['vm_info'] is defined and hv['vm_info'].failed is defined and hv['vm_info'].failed|bool %}
+      {{ host }} - Could not find the host in VMWare, snapshot not taken 
       {% endif %}
-      {% if hostvars[i]['create_snap'] is defined and hostvars[i]['create_snap'].failed is defined and hostvars[i]['create_snap'].failed|bool %}
-      {{ i }} - Snapshot error, VM was not patched
+      {% if hv['create_snap'] is defined and hv['create_snap'].failed is defined and hv['create_snap'].failed|bool %}
+      {{ host }} - Snapshot error, VM was not patched 
       {% endif %}
-      {% if hostvars[i]['rhel_patch_out'] is defined and hostvars[i]['rhel_patch_out'].failed is defined and hostvars[i]['rhel_patch_out'].failed|bool %}
-      {{ i }} - Patching error
+      {% if hv['rhel_patch_out'] is defined and hv['rhel_patch_out'].failed is defined and hv['rhel_patch_out'].failed|bool %}
+      {{ host }} - Patching error 
       {% endif %}
-      {% if hostvars[i]['deb_patch_out'] is defined and hostvars[i]['deb_patch_out'].failed is defined and hostvars[i]['deb_patch_out'].failed|bool %}
-      {{ i }} - Patching error
+      {% if hv['deb_patch_out'] is defined and hv['deb_patch_out'].failed is defined and hv['deb_patch_out'].failed|bool %}
+      {{ host }} - Patching error 
       {% endif %}
-      {% if hostvars[i]['new_kernel'] is defined and hostvars[i]['new_kernel'].failed is defined and hostvars[i]['new_kernel'].failed|bool %}
-      {{ i }} - Reboot task failed, host is either stuck or took longer than 10min to reboot
+      {% if hv['new_kernel'] is defined and hv['new_kernel'].failed is defined and hv['new_kernel'].failed|bool %}
+      {{ host }} - Reboot task failed, host is either stuck or took longer than 10min to reboot 
       {% endif %}
-      {% if hostvars[i]['autorm_out'] is defined and hostvars[i]['autorm_out'].failed is defined and hostvars[i]['autorm_out'].failed|bool %}
-      {{ i }} - Leaf packages removal error
+      {% if hv['autorm_out'] is defined and hv['autorm_out'].failed is defined and hv['autorm_out'].failed|bool %}
+      {{ host }} - Leaf packages removal error 
       {% endif %}
       {% endfor %}
   run_once: true

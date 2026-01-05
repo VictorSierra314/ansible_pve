@@ -14,6 +14,7 @@
 #snapshot_cron_name:   # Cron name commented in the file
 #cron_scheduler:       # Inventory hostname of the machine that will be running the cron and snap rm playbook
 #ansible_bin_path: /usr/bin/ansible-playbook
+#ansible_playbook_path: /playbook/path # Set your playbook path to run the snap rm tag
 
 ### Podman variables
 # All variables are defined here as example, but it is best to leave update_podman_images to false,
@@ -35,5 +36,5 @@
 #enable_pmcache_cleanup:   # boolean - DEFAULT FALSE - Run yum/apt cache clean up after upgrade
 #enable_reboot:            # boolean - DEFAULT TRUE - enable/disable reboot check after upgrade
 #after_reboot_delay:       # number - DEFAULT 600 - In minutes, how long the task will wait for the host to reboot before failing
-#service_check_exceptions: # list - host that will not get their services checked after reboot
-#  - placeholder
+service_check_exceptions: # list - host that will not get their services checked after reboot
+  - placeholder

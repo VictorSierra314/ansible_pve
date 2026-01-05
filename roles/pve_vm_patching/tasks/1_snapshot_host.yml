@@ -23,16 +23,23 @@
 - name: Schedule snapshot removal cron
   block:
     - name: SNAP | Compute snapshot removal date for cron, {{ snapshot_rm_delay }}h delay
+      command: >
+        date -d "@{{ ansible_date_time.epoch | int + snapshot_rm_delay * 3600 }}"
+        "+%M %H %d %m"
+      register: snapshot_rm_datetime
+      delegate_to: localhost
+      run_once: yes
+
+    - name: SNAP | Extract cron fields from snapshot removal datetime
       set_fact:
-        snapshot_rm_datetime: "{{ (ansible_date_time.iso8601 | to_datetime + timedelta(hours=snapshot_rm_delay)) }}"
-        snapshot_rm_minute: "{{ snapshot_rm_datetime.strftime('%M') }}"
-        snapshot_rm_hour:   "{{ snapshot_rm_datetime.strftime('%H') }}"
-        snapshot_rm_day:    "{{ snapshot_rm_datetime.strftime('%d') }}"
-        snapshot_rm_month:  "{{ snapshot_rm_datetime.strftime('%m') }}"
+        snapshot_rm_minute: "{{ snapshot_rm_datetime.stdout.split()[0] }}"
+        snapshot_rm_hour:   "{{ snapshot_rm_datetime.stdout.split()[1] }}"
+        snapshot_rm_day:    "{{ snapshot_rm_datetime.stdout.split()[2] }}"
+        snapshot_rm_month:  "{{ snapshot_rm_datetime.stdout.split()[3] }}"
       delegate_to: localhost
       run_once: yes
     
-    - name: SNAP | Schedule snapshot removal cron {{ snapshot_removal_delay }}days later
+    - name: SNAP | Schedule snapshot removal cron {{ snapshot_rm_delay }}h later
       cron:
         name: "{{ snapshot_cron_name }}"
         cron_file: "/etc/cron.d/{{ snapshot_cron_file }}"
@@ -59,7 +66,7 @@
       vmid: "{{ vmid }}"
       state: absent
       snapname: "{{ snapshot_name }}"
-      validate_cets: "{{ pve_check_cert | default('false') }}"
+      validate_certs: "{{ pve_check_cert | default('false') }}"
     delegate_to: localhost
 
   - name: SNAPRM | Clean up cron file
