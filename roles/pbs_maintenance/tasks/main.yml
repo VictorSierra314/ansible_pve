@@ -1,0 +1,103 @@
+---
+# tasks file for pbs_maintenance
+
+- name: Prune backups
+  tags: [ 'prune' ]
+  block:
+    - name: Start prune job
+      uri:
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/prune/{{ prune_job_id }}/run"
+        method: POST
+        headers:
+          Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
+        validate_certs: "{{ pve_check_cert | default('false') }}"
+      register: prune_running_job
+    
+    - name: Wait for prune job to complete
+      uri:
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/nodes/pbs/tasks/{{ prune_running_job.json.data }}/status"
+        method: GET
+        headers:
+          Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
+        validate_certs: "{{ pbs_check_cert | default('false') }}"
+      register: prune_status
+      until:
+        prune_status.json.data.status in ['OK', 'stopped', 'error']
+        and
+        prune_status.json.data.exitstatus is defined
+      retries: 600
+      delay: 60
+
+    - debug:
+        msg: "{{ prune_status }}"
+
+    - fail:
+
+- name: Verify backups
+  tags: [ 'verify' ]
+  block:
+    - name: Start Verify job
+      uri:
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/verify"
+        method: POST
+        headers:
+          Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
+        body_format: json
+        body:
+          datastore: "{{ datastore_id }}"
+        validate_certs: false
+      register: verify_running_job
+
+    - name: Wait for verify job to complete
+      uri:
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/jobs/{{ verify_running_job.json.data.id }}"
+        method: GET
+        headers:
+          Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
+        validate_certs: "{{ pbs_check_cert | default('false') }}"
+      register: verify_status
+      until: verify_status.json.data.status in ['finished', 'error']
+      retries: 600
+      delay: 60
+
+- name: Garbage collection job
+  tags: [ 'gc' ]
+  block:
+    - name: Run garbage collection on PBS datastore
+      uri:
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/garbage-collection"
+        method: POST
+        headers:
+          Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
+        body_format: json
+        body:
+          datastore: "{{ datastore_id }}"
+        validate_certs: false
+      register: gc_running_job
+    
+    - name: Wait for garbage collection job to complete
+      uri:
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/jobs/{{ gc_running_job.json.data.id }}"
+        method: GET
+        headers:
+          Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
+        validate_certs: "{{ pbs_check_cert | default('false') }}"
+      register: gc_status
+      until: gc_status.json.data.status in ['finished', 'error']
+      retries: 600
+      delay: 60
+
+- name: Display prune job output
+  debug:
+    msg: "{{ gc_status.json }}"
+  when: prune_running_job is defined
+
+- name: Display verify output
+  debug:
+    msg: "{{ gc_status.json }}"
+  when: verify_running_job is defined
+
+- name: Display garbage collection output
+  debug:
+    msg: "{{ gc_status.json }}"
+  when: gc_running_job is defined

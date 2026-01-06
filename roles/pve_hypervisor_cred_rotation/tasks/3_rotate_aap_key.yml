@@ -22,7 +22,7 @@
           Content-Type: "application/json"
         body_format: json
         status_code: 200
-        validate_certs: false
+        validate_certs: "{{ pve_check_cert | default('false') }}"
         return_content: true
       delegate_to: ---CONTROLER---
       run_once: true
@@ -75,7 +75,7 @@
                 username: "{{ aap_username }}"
                 ssh_key_data: "{{ new_private_key }}"
             status_code: 201
-            validate_certs: false
+            validate_certs: "{{ pve_check_cert | default('false') }}"
             return_content: true
           delegate_to: ---CONTROLER---
           run_once: true
@@ -103,7 +103,7 @@
         headers:
           Authorization: "Bearer {{ aap_token }}"
           Content-Type: "application/json"
-        validate_certs: false
+        validate_certs: "{{ pve_check_cert | default('false') }}"
         return_content: true
       delegate_to: ---CONTROLER---
       run_once: true
@@ -139,7 +139,7 @@
             "disassociate": true
           }
         status_code: 204
-        validate_certs: false
+        validate_certs: "{{ pve_check_cert | default('false') }}"
       loop: "{{ parsed_templates.results }}"
       loop_control:
         label: "{{ item.name }}"
@@ -163,7 +163,7 @@
           "id": {{ (get_all_key.json.results | selectattr('name', 'search', 'Ansible SSH key ' + lookup('pipe', 'date +%Y%m')) | list | first).id | default(create_credential.json.id) }}
           }
         status_code: 204
-        validate_certs: false
+        validate_certs: "{{ pve_check_cert | default('false') }}"
       loop: "{{ parsed_templates.results }}"
       loop_control:
         label: "{{ item.name }}"
@@ -179,7 +179,7 @@
           Authorization: "Bearer {{ aap_token }}"
           Content-Type: "application/json"
         return_content: true
-        validate_certs: false
+        validate_certs: "{{ pve_check_cert | default('false') }}"
       loop: "{{ parsed_templates.results }}"
       loop_control:
         label: "{{ item.name }}"

@@ -1,0 +1,11 @@
+---
+# vars file for pbs_maintenance
+
+### Variables for PBS API calls
+#pbs_api_node:   #Hostname of the api receiver hypervisor
+#pbs_domain:     #Your domain
+#pbs_api_user:   #API user ID
+#pbs_api_token:  #API user token ID
+#pbs_api_secret: #API user token secret
+#pbs_check_cert: #boolean - DEFAULT FALSE - Check hypervisor SSL cert
+

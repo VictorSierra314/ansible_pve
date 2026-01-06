@@ -1,0 +1,19 @@
+---
+# defaults file for pve_vm_pbs_backup
+
+### Backup variables
+# The role run through host and use the VMID defined per host (list of one)
+# You can configure the following variable per host
+#backup_storage_id:       # PBS storage ID as defined in your cluster
+#backup_bandwidth_limit:  # DEFAULT OMIT - In KiB/s bandwidth limit during backup
+#backup_mode:             # DEFAULT SNAPSHOT - Mode used to do the backup
+#backup_compression_mode: # DEFAULT ZSTD - Set backup compression mode
+#backup_description:      # DEFAILT OMIT - Set a description for the backup
+#backup_notification:     # DEFAULT AUTO - Notification mode 
+#backup_protection:       # DEFAULT FALSE - BOOLEAN - Enable/disable backup protection
+#backup_retention:        # DEFAULT OMIT - Set retention setting for the backup
+#backup_wait:             # DEFAULT TRUE - BOOLEAN - Wait for backup to complete
+#backup_failure_timeout:  # DEFAULT 3600 - in second, timeout before the job fail
+
+# Deactivate PBS storage post backup
+#disable_storage_post_backup: # DEFAULT FALSE - BOOLEAN

@@ -1,0 +1,52 @@
+---
+# tasks file for pve_vm_pbs_backup
+
+- name: Ensure PBS storage is enabled
+  uri:
+    url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/storage/{{ backup_storage_id }}"
+    method: PUT
+    headers:
+      Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
+    body_format: form-urlencoded
+    body:
+      disable: 0
+    validate_certs: "{{ pve_check_cert | default('false') }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Backup guest to {{ backup_storage_id }}
+  community.proxmox.proxmox_backup:
+    api_user: "{{ pve_api_user }}"                                                                                                                        
+    api_token_id: "{{ pve_api_token }}"                                                                                                                   
+    api_token_secret: "{{ pve_api_secret }}"                                                                                                              
+    api_host: "{{ pve_api_node }}"
+    bandwidth: "{{ backup_bandwidth_limit | default(omit) }}"
+    backup_mode: "{{ backup_mode | default('snapshot') }}"
+    compress: "{{ backup_compression_mode | default('zstd') }}"
+    description: "{{ backup_description | default(omit) }}"
+    mode: include
+    notification_mode: "{{ backup_notification | default('auto') }}"
+    protected: "{{ backup_protection | default('false') }}"
+    retention: "{{ backup_retention | default(omit) }}"
+    storage: "{{ backup_storage_id }}"
+    wait: "{{ backup_wait | default('true') }}"
+    wait_timeout: "{{ backup_failure_timeout | default('3600') }}"
+    vmids: 
+      - "{{ vmid }}"
+  delegate_to: localhost
+  #when: vmid is defined
+  when: placeholder is defined
+ 
+- name: Disable PBS storage
+  uri:
+    url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/storage/{{ backup_storage_id }}"
+    method: PUT
+    headers:
+      Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
+    body_format: form-urlencoded
+    body:
+      disable: 1
+    validate_certs: "{{ pve_check_cert | default('false') }}"
+  delegate_to: localhost
+  run_once: true
+  when: disable_storage_post_backup|default('false')|bool
