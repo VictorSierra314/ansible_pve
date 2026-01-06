@@ -1,7 +1,7 @@
 ---
 # tasks file for pbs_maintenance
 
-- name: Prune backups
+- name: Prune tasks
   tags: [ 'prune' ]
   block:
     - name: Start prune job
@@ -15,7 +15,7 @@
     
     - name: Wait for prune job to complete
       uri:
-        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/nodes/pbs/tasks/{{ prune_running_job.json.data }}/status"
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/nodes/{{ pbs_node }}/tasks/{{ prune_running_job.json.data }}/status"
         method: GET
         headers:
           Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
@@ -25,67 +25,65 @@
         prune_status.json.data.status in ['OK', 'stopped', 'error']
         and
         prune_status.json.data.exitstatus is defined
-      retries: 600
-      delay: 60
+      retries: "{{ prune_check_retries | default('600') }}"
+      delay: "{{ prune_check_delay | default('60') }}"
 
-    - debug:
-        msg: "{{ prune_status }}"
-
-    - fail:
-
-- name: Verify backups
+- name: Verify tasks
   tags: [ 'verify' ]
   block:
     - name: Start Verify job
       uri:
-        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/verify"
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/verify/{{ verify_job_id }}/run"
         method: POST
         headers:
           Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
-        body_format: json
-        body:
-          datastore: "{{ datastore_id }}"
-        validate_certs: false
+        validate_certs: "{{ pbs_check_cert | default('false') }}"
       register: verify_running_job
 
     - name: Wait for verify job to complete
       uri:
-        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/jobs/{{ verify_running_job.json.data.id }}"
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/nodes/{{ pbs_node }}/tasks/{{ verify_running_job.json.data }}/status"
         method: GET
         headers:
           Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
         validate_certs: "{{ pbs_check_cert | default('false') }}"
       register: verify_status
-      until: verify_status.json.data.status in ['finished', 'error']
-      retries: 600
-      delay: 60
+      until:
+        verify_status.json.data.status in ['OK', 'stopped', 'error']
+        and
+        verify_status.json.data.exitstatus is defined
+      retries: "{{ verify_check_retries | default('600') }}"
+      delay: "{{ verify_check_delay | default('60') }}"
 
-- name: Garbage collection job
+- name: Garbage collection tasks
   tags: [ 'gc' ]
   block:
     - name: Run garbage collection on PBS datastore
       uri:
-        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/garbage-collection"
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/datastore/{{ datastore_id }}/gc"
         method: POST
         headers:
           Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
-        body_format: json
-        body:
-          datastore: "{{ datastore_id }}"
-        validate_certs: false
+        validate_certs: "{{ pbs_check_cert | default('false') }}"
       register: gc_running_job
     
+    - debug:
+        msg: "{{ gc_running_job }}"
+
     - name: Wait for garbage collection job to complete
       uri:
-        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/admin/jobs/{{ gc_running_job.json.data.id }}"
+        url: "https://{{ pbs_api_node }}.{{ pbs_domain }}:8007/api2/json/nodes/{{ pbs_node }}/tasks/{{ gc_running_job.json.data }}/status"
         method: GET
         headers:
           Authorization: "PBSAPIToken={{ pbs_api_user }}!{{ pbs_api_token }}:{{ pbs_api_secret }}"
         validate_certs: "{{ pbs_check_cert | default('false') }}"
       register: gc_status
-      until: gc_status.json.data.status in ['finished', 'error']
-      retries: 600
-      delay: 60
+      until:
+        gc_status.json.data.status in ['OK', 'stopped', 'error']
+        and
+        gc_status.json.data.exitstatus is defined
+      retries: "{{ gc_check_retries | default('600') }}"
+      delay: "{{ gc_check_delay | default('60') }}"
 
 - name: Display prune job output
   debug:

@@ -34,8 +34,7 @@
     vmids: 
       - "{{ vmid }}"
   delegate_to: localhost
-  #when: vmid is defined
-  when: placeholder is defined
+  when: vmid is defined
  
 - name: Disable PBS storage
   uri:

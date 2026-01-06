@@ -1,5 +1,13 @@
 ---
 # defaults file for pbs_maintenance
 
-#datastore_id:
-#prune_job_id:
+### PBS maintenance variables
+#datastore_id:          # Datastore ID
+#prune_job_id:          # Prune job id configured on the target datastore
+#verify_job_id:         # Verify job id configured on the target datastore 
+#verify_check_retries:  # DEFAULT 600 - NUMBER - Number of iteration during verification check
+#verify_check_delay:    # DEFAULT 60 - Number - In second, delay between each check iteration
+#prune_check_retries:   # DEFAULT 600 - NUMBER - Number of iteration during prune job
+#prune_check_delay:     # DEFAULT 60 - Number - In second, delay between each check iteration
+#gc_check_retries:      # DEFAULT 600 - NUMBER - Number of iteration during garbage collection job
+#gc_check_delay:        # DEFAULT 60 - Number - In second, delay between each check iteration
