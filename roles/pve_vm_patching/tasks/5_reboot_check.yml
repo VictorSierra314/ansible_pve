@@ -4,10 +4,23 @@
     - name: RHEL | Check is a reboot is necessary
       command: yum needs-restarting --reboothint
       when: ansible_os_family == 'RedHat'
+
     - name: DEB | Check if reboot is necessary
       command: needrestart -r a -p
       when: ansible_os_family == 'Debian'
+
   rescue:
+    - name: Gracefully stop all containers before reboot
+      become_user: "{{ podman_user }}"
+      systemd:
+        name: "{{ item.img }}"
+        scope: user
+        state: stopped
+      loop: "{{ podman_images_list }}"
+      when: 
+        - podman_images_list is defined
+        - podman_images_list | length > 0
+
     - name: RHEL&DEB | Reboot the host if required
       reboot:
       register: new_kernel

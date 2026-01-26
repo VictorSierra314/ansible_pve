@@ -15,6 +15,7 @@
       exit $run_rc
     fi
   register: rhel_patch_out
+  notify: Email report
 
 - name: SAT | DEBUG | Print out yum output
   debug:
