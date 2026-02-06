@@ -2,14 +2,15 @@
 - name: Check if a reboot is necessary (Command will exit as failed if reboot is needed)
   block:
     - name: RHEL | Check is a reboot is necessary
-      command: yum needs-restarting --reboothint
+      ansible.builtin.shell: "yum needs-restarting -q | wc -l"
+      register: rhel_need_reboot
       when: ansible_os_family == 'RedHat'
 
     - name: DEB | Check if reboot is necessary
-      command: needrestart -r a -p
+      ansible.builtin.shell: "needrestart -r a -p | wc -l"
+      register: debian_need_reboot
       when: ansible_os_family == 'Debian'
 
-  rescue:
     - name: Gracefully stop all containers before reboot
       become_user: "{{ podman_user }}"
       systemd:
@@ -18,16 +19,22 @@
         state: stopped
       loop: "{{ podman_images_list }}"
       when: 
+        - debian_need_reboot is defined or rhel_need_reboot is defined
+        - debian_need_reboot.stdout > "1" or rhel_need_reboot.stdout > "0"
         - podman_images_list is defined
         - podman_images_list | length > 0
 
     - name: RHEL&DEB | Reboot the host if required
       reboot:
       register: new_kernel
+      when: 
+        - debian_need_reboot is defined or rhel_need_reboot is defined
+        - debian_need_reboot.stdout > "1" or rhel_need_reboot.stdout > "0"
 
 - name: Wait for all host to be available before moving on
   wait_for_connection:
     timeout: "{{ after_reboot_delay | default('600') }}"
+  register: wait_for_host
   when: 
     - new_kernel is defined
     - new_kernel.changed

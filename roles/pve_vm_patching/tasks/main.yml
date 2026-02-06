@@ -26,7 +26,7 @@
 - name: Check if a reboot is necessary
   include_tasks: 5_reboot_check.yml
   when:
-    - rhel_patch_out.changed is defined or deb_patch_out.changed is defined
+    - rhel_patch_out is defined or deb_patch_out is defined
     - rhel_patch_out.changed or deb_patch_out.changed
     - enable_reboot|default('true')|bool
 
@@ -43,14 +43,14 @@
 - name: Clean leaf packages
   include_tasks: 7_leaf_packages_cleanup.yml 
   when: 
-    - rhel_patch_out.changed is defined or deb_patch_out.changed is defined
+    - rhel_patch_out is defined or deb_patch_out is defined
     - rhel_patch_out.changed or deb_patch_out.changed
 
 - name: Post update service check
   include_tasks: 8_postupdate_service_check.yml
   when: 
     - inventory_hostname not in service_check_exceptions
-    - rhel_patch_out.changed is defined or deb_patch_out.changed is defined
+    - rhel_patch_out is defined or deb_patch_out is defined
     - rhel_patch_out.changed or deb_patch_out.changed
 
 - name: Update Redhat insight
@@ -59,3 +59,10 @@
     - rhel_patch_out.changed
     - force_insight_refresh is defined
     - ansible_distribution == 'RedHat'
+
+- name: Trigger final report email
+  debug:
+    msg: "Trigger final report email"
+  changed_when: true
+  notify: Email report
+  run_once: true

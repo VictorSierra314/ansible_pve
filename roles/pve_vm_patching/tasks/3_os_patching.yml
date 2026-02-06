@@ -8,7 +8,6 @@
         state: latest
       register: rhel_patch_out
       when: ansible_os_family == 'RedHat'
-      notify: Email report
 
     - name: DEB | Update & upgrade OS
       apt:
@@ -16,7 +15,6 @@
         upgrade: yes
       register: deb_patch_out
       when: ansible_os_family == 'Debian'
-      notify: Email report
 
     - name: RHEL | DEBUG | Print yum output
       debug:

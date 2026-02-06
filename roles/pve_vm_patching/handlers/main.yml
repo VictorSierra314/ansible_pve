@@ -52,6 +52,9 @@
       {% if hv['autorm_out'] is defined and hv['autorm_out'].failed is defined and hv['autorm_out'].failed|bool %}
       {{ host }} - Leaf packages removal error 
       {% endif %}
+      {% if hv['wait_for_host'] is defined and hv['wait_for_host'].failed is defined and hv['wait_for_host'].failed|bool %}
+      {{ host }} - Failed to come back after reboot
+      {% endif %}
       {% endfor %}
   run_once: true
   delegate_to: localhost
