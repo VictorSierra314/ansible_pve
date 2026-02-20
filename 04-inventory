@@ -1,0 +1,14 @@
+[webservers]
+Dummy1 ansible_hosts=192.168.100.21
+Dummy3 ansible_hosts=192.168.100.23
+
+[dbservers]
+Dummy2 ansible_hosts=192.168.100.22
+
+[domain_controlers]
+
+[mgtservers]
+
+[pve_hypervisor_dev]
+
+[pve_hypervisor_sandbox]
