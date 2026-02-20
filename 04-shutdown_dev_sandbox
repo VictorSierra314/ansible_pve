@@ -197,7 +197,6 @@
       register: check_guest_status_result
       ansible.builtin.wait_for_connection:
         timeout: 10
-        when: not check_guest_status_result.failed
 
     # This task will gather a list of guest on the pve node.
     - name: List hypervisor virtual machines
@@ -214,9 +213,8 @@
 
     # If enable_debug is set to true, the server list will be displayed by this task.
     - name: Display vm list output
-      when:
+      when: 
         - enable_debug | default('false') | bool
-        - item.status != 'stopped'
         - not check_guest_status_result.failed
       loop: "{{ vm_list_result.proxmox_vms }}"
       loop_control:
@@ -308,8 +306,8 @@
         timeout: 10
 
     - name: Set ceph flags before shuting down the node
+      become: true
       when: not check_guest_status_result.failed
-      delegate_to: "{{ item }}"
       register: set_ceph_flag_result
       changed_when: set_ceph_flag_result.rc == 0
       loop: "{{ ceph_flags }}"
@@ -320,6 +318,7 @@
 
     # This task gather ceph cluste status
     - name: Gather ceph status
+      become: true
       when: not check_guest_status_result.failed
       register: ceph_status_result
       changed_when: ceph_status_result.rc == 0
