@@ -1,0 +1,49 @@
+---
+enable_debug: false             # bool - default false - Enable/disable debug output
+domain: outcompany.com          # Company domain, used for all api call tasks
+# List of flags for ceph. There is a 1min pause between each flag to let ceph settle.
+# Pause must be the last one to run in any cases.
+ceph_flags:
+  - noout
+  - nobackfill
+  - norecover
+  - norebalance
+  - nodown
+  - pause
+# Set api variables based on the PVE cluster.
+# Each cluster, dev / sandbox has its own api user.
+# There is only 2 options possible, so I choose to not use the else. and have 2 if conditions.
+pve_api_node: >
+  {% if inventory_hostname in groups['pve_hypervisor_dev'] %}
+  pve-dev-master-01
+  {% elif inventory_hostname in groups['pve_hypervisor_sandbox'] %}
+  pve-sdbx-master-01
+  {% endif %}
+pve_api_user: >
+  {% if inventory_hostname in groups['pve_hypervisor_dev'] %}
+  pve-dev-api-user
+  {% elif inventory_hostname in groups['pve_hypervisor_sandbox'] %}
+  pve-sdbx-api-user
+  {% endif %}
+pve_api_token: >
+  {% if inventory_hostname in groups['pve_hypervisor_dev'] %}
+  pve-dev-api-token-id
+  {% elif inventory_hostname in groups['pve_hypervisor_sandbox'] %}
+  pve-sdbx-api-token-id
+  {% endif %}
+pve_api_secret: >
+  {% if inventory_hostname in groups['pve_hypervisor_dev'] %}
+  !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  {% elif inventory_hostname in groups['pve_hypervisor_sandbox'] %}
+  !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  {% endif %}
+pve_cert_validation: false              # bool - default false - Enable/disable https verification.
+force_guest_shutdown_rightaway: false   # bool - default false - Force the guest stop right away.
