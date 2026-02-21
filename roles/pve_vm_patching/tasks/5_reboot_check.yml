@@ -13,24 +13,24 @@
   register: debian_need_reboot
   command: needrestart -r a -p
 
-- name: RHEL | Set reboot variable for email report
+- name: RHEL | Set reboot variable
   when:
     - ansible_os_family == 'RedHat'
     - rhel_needs_reboot_result.stdout_lines | length > 1
   set_fact:
-    new_kernel: true
+    need_to_reboot: true
 
-- name: DEB | Set reboot variable for email report
+- name: DEB | Set reboot variable
   when:
     - ansible_os_family == 'Debian'
     - deb_needs_reboot_result.stdout_lines | length > 1
   set_fact:
-    new_kernel: true
+    need_to_reboot: true
 
 - name: Gracefully stop all containers before reboot
   when: 
-    - debian_need_reboot is defined or rhel_need_reboot is defined
-    - debian_need_reboot.stdout_lines | length > "1" or rhel_need_reboot.stdout_lines | length > "1"
+    - need_to_reboot is defined
+    - need_to_reboot | bool
     - podman_images_list is defined
     - podman_images_list | length > 0
   become_user: "{{ podman_user }}"
@@ -44,8 +44,8 @@
 
 - name: RHEL&DEB | Reboot the host if required
   when: 
-    - new_kernel is defined
-    - new_kernel | bool
+    - need_to_reboot is defined
+    - need_to_reboot | bool
   register: new_kernel
   reboot:
 
