@@ -2,8 +2,8 @@
 # tasks file for pve_vm_patching
 - name: Snapshot host before update
   tags: [ snaprm ]
+  when: enable_snapshot | default('true') | bool
   include_tasks: 1_snapshot_host.yml
-  when: enable_snapshot|default('true')|bool
 
 - name: Update podman images
   include_tasks: 2_podman_images_update.yml
@@ -24,11 +24,11 @@
   when: inventory_hostname in groups['satellite_server_group']
 
 - name: Check if a reboot is necessary
-  include_tasks: 5_reboot_check.yml
   when:
     - rhel_patch_out is defined or deb_patch_out is defined
     - rhel_patch_out.changed or deb_patch_out.changed
-    - enable_reboot|default('true')|bool
+    - enable_reboot | default('true') | bool
+  include_tasks: 5_reboot_check.yml
 
 - name: Clean previous kernels
   include_tasks: 6_kernel_cleanup.yml
