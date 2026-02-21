@@ -21,8 +21,10 @@
     echo "LIVE PVE VERSION: $(pveversion)"
     echo "RUNNING KERNEL: $(uname -r)"
     echo "HOST REBOOTED: {% if node_reboot_out is defined and node_reboot_out.changed %}YES{% else %}NO{% endif %}"
+    {% if ceph_flag_status is defined %}
     echo "CEPH STATUS:"
     ceph -s
+    {% endif %}
   register: last_check_out
 
 - name: Upgrade report

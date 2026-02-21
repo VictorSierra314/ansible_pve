@@ -24,8 +24,8 @@
 #podman_user:          # Set username running podman
 #podman_images_prune:  # boolean - DEFAULT FALSE - Enable/disable dangling images removal
 #podman_images_list:
-#  - { img: 'docker.io/path/to/image1', tag: 'latest', frc: 'true' }
-#  - { img: 'docker.io/path/to/image2', tag: '1.0.X', frc: 'false' }
+#  - { name: 'container_name1', img: 'docker.io/path/to/image1', tag: 'latest', frc: 'true', src: 'systemd_container_name1.service' }
+#  - { name: 'container_name2', img: 'docker.io/path/to/image2', tag: '1.0.X', frc: 'false', src: 'systemd_container_name2.service' }
 
 ### Patching variables
 #log_path: /var/log/ansible/pve_vm_patching

@@ -1,40 +1,58 @@
 ---
-- name: Check if a reboot is necessary (Command will exit as failed if reboot is needed)
-  block:
-    - name: RHEL | Check is a reboot is necessary
-      ansible.builtin.shell: "yum needs-restarting -q | wc -l"
-      register: rhel_need_reboot
-      when: ansible_os_family == 'RedHat'
+- name: RHEL | Check is a reboot is necessary
+  when: ansible_os_family == 'RedHat'
+  changed_when: rhel_needs_reboot_result.stdout | length > 0
+  failed_when: rhel_needs_reboot_result.stderr | length > 0
+  register: rhel_need_reboot
+  command: yum needs-restarting
 
-    - name: DEB | Check if reboot is necessary
-      ansible.builtin.shell: "needrestart -r a -p | wc -l"
-      register: debian_need_reboot
-      when: ansible_os_family == 'Debian'
+- name: DEB | Check if reboot is necessary
+  when: ansible_os_family == 'Debian'
+  changed_when: deb_needs_reboot_result.stdout | length > 0
+  failed_when: deb_needs_reboot_result.stderr | length > 0
+  register: debian_need_reboot
+  command: needrestart -r a -p
 
-    - name: Gracefully stop all containers before reboot
-      become_user: "{{ podman_user }}"
-      systemd:
-        name: "{{ item.img }}"
-        scope: user
-        state: stopped
-      loop: "{{ podman_images_list }}"
-      when: 
-        - debian_need_reboot is defined or rhel_need_reboot is defined
-        - debian_need_reboot.stdout > "1" or rhel_need_reboot.stdout > "0"
-        - podman_images_list is defined
-        - podman_images_list | length > 0
+- name: RHEL | Set reboot variable for email report
+  when:
+    - ansible_os_family == 'RedHat'
+    - rhel_needs_reboot_result.stdout_lines | length > 1
+  set_fact:
+    new_kernel: true
 
-    - name: RHEL&DEB | Reboot the host if required
-      reboot:
-      register: new_kernel
-      when: 
-        - debian_need_reboot is defined or rhel_need_reboot is defined
-        - debian_need_reboot.stdout > "1" or rhel_need_reboot.stdout > "0"
+- name: DEB | Set reboot variable for email report
+  when:
+    - ansible_os_family == 'Debian'
+    - deb_needs_reboot_result.stdout_lines | length > 1
+  set_fact:
+    new_kernel: true
+
+- name: Gracefully stop all containers before reboot
+  when: 
+    - debian_need_reboot is defined or rhel_need_reboot is defined
+    - debian_need_reboot.stdout_lines | length > "1" or rhel_need_reboot.stdout_lines | length > "1"
+    - podman_images_list is defined
+    - podman_images_list | length > 0
+  become_user: "{{ podman_user }}"
+  loop: "{{ podman_images_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  systemd:
+    name: "{{ item.scr }}"
+    scope: user
+    state: stopped
+
+- name: RHEL&DEB | Reboot the host if required
+  when: 
+    - new_kernel is defined
+    - new_kernel | bool
+  register: new_kernel
+  reboot:
 
 - name: Wait for all host to be available before moving on
-  wait_for_connection:
-    timeout: "{{ after_reboot_delay | default('600') }}"
-  register: wait_for_host
   when: 
     - new_kernel is defined
     - new_kernel.changed
+  register: wait_for_host
+  wait_for_connection:
+    timeout: "{{ after_reboot_delay | default('600') }}"
