@@ -3,14 +3,14 @@
   when: ansible_os_family == 'RedHat'
   changed_when: rhel_needs_reboot_result.stdout | length > 0
   failed_when: rhel_needs_reboot_result.stderr | length > 0
-  register: rhel_need_reboot
+  register: rhel_need_reboot_result
   command: yum needs-restarting
 
 - name: DEB | Check if reboot is necessary
   when: ansible_os_family == 'Debian'
   changed_when: deb_needs_reboot_result.stdout | length > 0
   failed_when: deb_needs_reboot_result.stderr | length > 0
-  register: debian_need_reboot
+  register: debian_need_reboot_result
   command: needrestart -r a -p
 
 - name: RHEL | Set reboot variable

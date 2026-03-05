@@ -1,7 +1,6 @@
 ---
 # tasks file for pve_vm_patching
 - name: Snapshot host before update
-  tags: [ snaprm ]
   when: enable_snapshot | default('true') | bool
   include_tasks: 1_snapshot_host.yml
 

@@ -53,27 +53,3 @@
       delegate_to: "{{ cron_scheduler }}"
       run_once: yes
   when: snapshot_rm_schedule|default('false')|bool
-
-- name: Snapshot removal triggered by cron
-  tags: [ never, snaprm ]
-  block:
-  - name: SNAPRM | Trigger snapshot removal
-    community.proxmox.proxmox_snap:
-      api_user: "{{ pve_api_user }}"
-      api_token_id: "{{ pve_api_token }}"
-      api_token_secret: "{{ pve_api_secret }}"
-      api_host: "{{ pve_api_node }}"
-      vmid: "{{ vmid }}"
-      state: absent
-      snapname: "{{ snapshot_name }}"
-      validate_certs: "{{ pve_check_cert | default('false') }}"
-    delegate_to: localhost
-
-  - name: SNAPRM | Clean up cron file
-    cron:
-      name: "{{ snapshot_cron_name }}"
-      cron_file: "/etc/cron.d/{{ snapshot_cron_file }}"
-      user: "{{ snapshot_rm_user }}"
-      state: absent
-    delegate_to: "{{ cron_scheduler }}"
-    run_once: yes
