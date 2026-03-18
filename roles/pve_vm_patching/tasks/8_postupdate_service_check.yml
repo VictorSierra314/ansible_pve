@@ -11,14 +11,18 @@
     services_list: "{{ ansible_facts.services | dict2items }}"
 
 - name: Enable email notification if any services are in failed state
-  set_fact:
-    send_service_failed_notification: true
+  when: item.value.state == "failed"
   loop: "{{ services_list }}"
   loop_control:
     label: "{{ item.value.name }}"
-  when: item.value.state == "failed"
+  set_fact:
+    send_service_failed_notification: true
 
 - name: Email notification when services are in failed state
+  when:
+    - send_service_failed_notification is defined
+    - send_service_failed_notification 
+  delegate_to: localhost
   mail:
     from: "{{ notification_sender }}"
     to: "{{ notification_email }}"
@@ -41,7 +45,3 @@
       - Service Name: {{ item.key }}, Service State: {{ item.value.state }}
       {% endif %}
       {% endfor %}
-  delegate_to: localhost
-  when:
-    - send_service_failed_notification is defined
-    - send_service_failed_notification 

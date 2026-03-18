@@ -5,14 +5,14 @@
   include_tasks: 1_snapshot_host.yml
 
 - name: Update podman images
-  include_tasks: 2_podman_images_update.yml
   when: update_podman_images|default('false')|bool
+  include_tasks: 2_podman_images_update.yml
 
 - name: Patch all OS
-  include_tasks: 3_os_patching.yml
   when:
     - inventory_hostname not in groups['satellite_server_group']
     - inventory_hostname not in groups['satellite_capsule_group']
+  include_tasks: 3_os_patching.yml
 
 - name: Patch Satellites capsules instances
   include_tasks: 4_satellite_patching.yml 
@@ -30,7 +30,6 @@
   include_tasks: 5_reboot_check.yml
 
 - name: Clean previous kernels
-  include_tasks: 6_kernel_cleanup.yml
   when: 
     - enable_kernel_cleanup|default('false')|bool
     - ansible_os_family == 'RedHat'
@@ -38,30 +37,31 @@
     - new_kernel.changed
     - inventory_hostname not in groups['satellite_server_group']
     - inventory_hostname not in groups['satellite_capsule_group']
+  include_tasks: 6_kernel_cleanup.yml
 
 - name: Clean leaf packages
-  include_tasks: 7_leaf_packages_cleanup.yml 
   when: 
     - rhel_patch_out is defined or deb_patch_out is defined
     - rhel_patch_out.changed or deb_patch_out.changed
+  include_tasks: 7_leaf_packages_cleanup.yml 
 
 - name: Post update service check
-  include_tasks: 8_postupdate_service_check.yml
   when: 
     - inventory_hostname not in service_check_exceptions
     - rhel_patch_out is defined or deb_patch_out is defined
     - rhel_patch_out.changed or deb_patch_out.changed
+  include_tasks: 8_postupdate_service_check.yml
 
 - name: Update Redhat insight
-  shell: 'insights-client'
   when: 
     - rhel_patch_out.changed
     - force_insight_refresh is defined
     - ansible_distribution == 'RedHat'
+  shell: 'insights-client'
 
 - name: Trigger final report email
+  changed_when: true
+  run_once: true
+  notify: Email report
   debug:
     msg: "Trigger final report email"
-  changed_when: true
-  notify: Email report
-  run_once: true

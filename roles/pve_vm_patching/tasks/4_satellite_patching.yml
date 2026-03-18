@@ -1,6 +1,8 @@
 ---
 - name: SAT | Patch satellite instances
   ignore_errors: true
+  register: rhel_patch_out
+  changed_when: rhel_patch_out.rc == 78 or rhel_patch_out.rc == 0
   shell: |
     satellite-maintain update check -y 2>&1
     echo "======================== Exit code for check: $?"
@@ -8,17 +10,10 @@
     satellite-maintain update run -y 2>&1
     run_rc=$?
     echo "======================== Exit code for run: $run_rc"
-    if [ "$run_rc" -eq 78 ]; then
-      echo "======= Satellite Nothing to update exit code (code 78), forcing success."
-      exit 0
-    else
-      exit $run_rc
-    fi
-  register: rhel_patch_out
 
 - name: SAT | DEBUG | Print out yum output
-  debug:
-    var: rhel_patch_out.results
   when: 
     - rhel_patch_out.results is defined
     - print_patching_output|default('false')|bool 
+  debug:
+    var: rhel_patch_out.results
