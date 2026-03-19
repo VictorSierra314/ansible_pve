@@ -18,7 +18,7 @@
       when:
         - autorm_out.changed is defined
         - autorm_out.changed
-        - print_autorm_output|default('false')|bool
+        - print_autorm_output | default('false') | bool
       ansible.builtin.debug:
         msg: "{{ autorm_out }}"
 
@@ -47,5 +47,5 @@
 - name: RHEL | If kernel clean up ran do a last reboot
   when:
     - rhel_kernel_cleanup.changed is defined
-    - enable_reboot|bool
+    - enable_reboot | bool
   ansible.builtin.reboot:

@@ -16,14 +16,14 @@
 - name: RHEL | Set reboot variable
   when:
     - ansible_os_family == 'RedHat'
-    - rhel_needs_reboot_result.stdout_lines | length > 1
+    - rhel_needs_reboot_result.rc != 0
   set_fact:
     need_to_reboot: true
 
 - name: DEB | Set reboot variable
   when:
     - ansible_os_family == 'Debian'
-    - deb_needs_reboot_result.stdout_lines | length > 1
+    - deb_needs_reboot_result.rc != 0
   set_fact:
     need_to_reboot: true
 
