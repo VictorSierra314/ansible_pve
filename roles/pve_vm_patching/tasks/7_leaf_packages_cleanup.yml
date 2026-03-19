@@ -1,29 +1,28 @@
 ---
 - name: Clean leaf packages
   block:
-    - name: RHEL | Clean leaf packages
+    - name: CLEANUP | Clean leaf rpm packages
       when: ansible_os_family == 'RedHat'
-      register: autorm_out
+      register: rpm_autorm_out
       ansible.builtin.yum:
         autoremove: true
 
-    - name: DEB | Clean leaf packages
+    - name: CLEANUP | Clean leaf deb packages
       when: ansible_os_family == 'Debian'
-      register: autorm_out
+      register: deb_autorm_out
       ansible.builtin.apt:
         purge: true
         autoremove: true
 
-    - name: RHEL&DEB | Print autoremove output
+    - name: CLEANUP | Print autoremove output
       when:
-        - autorm_out.changed is defined
-        - autorm_out.changed
+        - (rpm_autorm_out | default({})).changed or (deb_autorm_out | default({})).changed
         - print_autorm_output | default('false') | bool
       ansible.builtin.debug:
         msg: "{{ autorm_out }}"
 
   rescue:
-    - name: Email notification on failure
+    - name: CLEANUP | Email notification on failure
       delegate_to: localhost
       community.general.mail:
         from: "{{ notification_sender }}"
@@ -43,9 +42,3 @@
           Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
           Output:
           {{ autorm_out | to_nice_json }}
-
-- name: RHEL | If kernel clean up ran do a last reboot
-  when:
-    - rhel_kernel_cleanup.changed is defined
-    - enable_reboot | bool
-  ansible.builtin.reboot:

@@ -1,55 +1,53 @@
 ---
 - name: Patch all OS
   block:
-    - name: RHEL | Upgrade OS
-      yum:
+    - name: PATCHING | Upgrade RPM based OS
+      when: ansible_os_family == 'RedHat'
+      register: rhel_patch_out
+      ansible.builtin.yum:
         update_cache: true
         name: '*'
         state: latest
-      register: rhel_patch_out
-      when: ansible_os_family == 'RedHat'
 
-    - name: DEB | Update & upgrade OS
-      apt:
+    - name: PATCHING | Update & upgrade Debian based OS
+      when: ansible_os_family == 'Debian'
+      register: deb_patch_out
+      ansible.builtin.apt:
         update_cache: true
         upgrade: yes
-      register: deb_patch_out
-      when: ansible_os_family == 'Debian'
 
-    - name: RHEL | DEBUG | Print yum output
-      debug:
-        msg: "{{ rhel_patch_out.results }}"
+    - name: PATCHING | DEBUG | Print patching output
       when: 
-        - rhel_patch_out.results is defined
-        - rhel_patch_out.changed is defined
-        - rhel_patch_out.changed
-        - print_patching_output|default('false')|bool
+        - (rhel_patch_out | default({})).changed or
+          (deb_patch_out | default({})).changed
+        - print_patching_output | default('false') | bool
+      ansible.builtin.debug:
+        msg: |
+          {% if ansible_os_family == 'RedHat' %}
+          {{ rhel_patch_out.results }}
+          {% elif ansible_os_family == 'Debian' %}
+          {{ deb_patch_out.stdout_lines }}
+          {% else %}
+          OS familly not recognized
+          {% endif %}
 
-    - name: DEB | DEBUG | Print apt output
-      debug:
-        msg: "{{ deb_patch_out.stdout_lines }}"
-      when: 
-        - deb_patch_out.stdout is defined
-        - deb_patch_out.changed is defined
-        - deb_patch_out.changed
-        - print_patching_output|default('false')|bool
-
-    - name: RHEL | Clean up yum cache
-      shell: "yum clean all"
+    - name: PATCHING | Clean up yum cache
       when: 
         - ansible_os_family == 'RedHat'
-        - enable_pmcache_cleanup|default('false')|bool
+        - enable_pmcache_cleanup | default('false') | bool
+      ansible.builtin.command: "yum clean all"
 
-    - name: DEB | Clean up apt cache
-      apt:
-        clean: true
+    - name: PATCHING | Clean up apt cache
       when: 
         - ansible_os_family == 'Debian'
-        - enable_pmcache_cleanup|default('false')|bool
+        - enable_pmcache_cleanup | default('false') | bool
+      ansible.builtin.apt:
+        clean: true
 
   rescue:
-    - name: Email notification on failure
-      mail:
+    - name: PATCHING | Email notification on failure
+      delegate_to: localhost
+      community.general.mail:
         from: "{{ notification_sender }}"
         to: "{{ notification_email }}"
         host: "{{ smtp_host }}"
@@ -72,4 +70,3 @@
           {% if ansible_os_family == 'Debian' %}
           {{ deb_patch_out | to_nice_json }}
           {% endif %}
-      delegate_to: localhost

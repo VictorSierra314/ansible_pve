@@ -1,14 +1,14 @@
 ---
 # tasks file for pve_hypervisor_rolling_upgrade
 - name: Gather ansible log path
-  find:
+  register: ansible_log
+  delegate_to: localhost
+  run_once: true
+  ansible.builtin.find:
     paths: /var/log/ansible/
     file_type: file
     patterns: "monthly_{{ inventory_hostname }}*"
     age: -1d
-  delegate_to: localhost
-  run_once: true
-  register: ansible_log
 
 # ============================================================
 # BLOCK 1: Upgrade node first, migrate VMs only if reboot needed
@@ -32,7 +32,7 @@
       ansible.builtin.include_tasks: 3_set_ceph_flags.yml
 
     - name: Reboot the node
-      when: 
+      when:
         - reboot_node | default('true') | bool
         - reboot_check.rc != 0
       register: node_reboot_out
@@ -72,7 +72,7 @@
       ansible.builtin.include_tasks: 3_set_ceph_flags.yml
 
     - name: Reboot the node
-      when: 
+      when:
         - reboot_node | default('true') | bool
         - reboot_check.rc != 0
       register: node_reboot_out

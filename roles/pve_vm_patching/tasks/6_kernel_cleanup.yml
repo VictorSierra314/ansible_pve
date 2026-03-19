@@ -1,14 +1,17 @@
 ---
 - name: Clean previous kernels
   block:
-    - name: RHEL | Clean up old kernel
-      shell: "dnf remove --oldinstallonly --setopt installonly_limit={{ kernel_versions_cap }} -y"
-      register: rhel_kernel_cleanup
+    - name: KERNEL | Clean up old kernel
       when: "'kernel' in rhel_patch_out.results"
+      register: rhel_kernel_cleanup
+      changed_when: rhel_kernel_cleanup.rc == 0
+      failed_when: rhel_kernel_cleanup.rc != 0
+      ansible.builtin.command: "dnf remove --oldinstallonly --setopt installonly_limit={{ kernel_versions_cap }} -y"
 
   rescue:
-    - name: Email notification on failure for rhel8/9
-      mail:
+    - name: KERNEL | Email notification on failure for rhel8/9
+      delegate_to: localhost
+      community.general.mail:
         from: "{{ notification_sender }}"
         to: "{{ notification_email }}"
         host: "{{ smtp_host }}"
@@ -26,4 +29,3 @@
           Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
           Output:
           {{ rhel_kernel_cleanup | to_nice_json }}
-      delegate_to: localhost

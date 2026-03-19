@@ -23,26 +23,22 @@
   ansible.builtin.include_tasks: 4_satellite_patching.yml
 
 - name: Check if a reboot is necessary
-  when:
-    - rhel_patch_out is defined or deb_patch_out is defined
-    - rhel_patch_out.changed or deb_patch_out.changed
-    - enable_reboot | default('true') | bool
+  when: enable_reboot | default('true') | bool
   ansible.builtin.include_tasks: 5_reboot_check.yml
 
-- name: Clean previous kernels
+- name: Clean previous kernels | RPM based OS only
   when:
     - enable_kernel_cleanup|default('false')|bool
     - ansible_os_family == 'RedHat'
-    - new_kernel is defined
-    - new_kernel.changed
+    - (new_kernel | default({})).changed
     - inventory_hostname not in groups['satellite_server_group']
     - inventory_hostname not in groups['satellite_capsule_group']
   ansible.builtin.include_tasks: 6_kernel_cleanup.yml
 
 - name: Clean leaf packages
-  when:
-    - rhel_patch_out is defined or deb_patch_out is defined
-    - rhel_patch_out.changed or deb_patch_out.changed
+  when: >
+    (rhel_patch_out | default({})).changed or
+    (deb_patch_out | default({})).changed
   ansible.builtin.include_tasks: 7_leaf_packages_cleanup.yml
 
 - name: Post update service check

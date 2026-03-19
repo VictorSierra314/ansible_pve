@@ -1,5 +1,5 @@
 ---
-- name: Pull podman images
+- name: PODMAN | Pull podman images
   become_user: "{{ podman_user }}"
   loop: "{{ podman_images_list }}"
   loop_control:
@@ -9,7 +9,7 @@
     tag: "{{ item.tag }}"
     force: "{{ item.frc | default(omit) }}"
 
-- name: Ensure no dangling images are left
+- name: PODMAN | Ensure no dangling images are left
   when: podman_images_prune|default('false')|bool
   become_user: "{{ podman_user }}"
   containers.podman.podman_prune:

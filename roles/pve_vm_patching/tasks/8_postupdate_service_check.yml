@@ -1,16 +1,16 @@
 ---
-- name: Wait for 10min to have all service running or timeout/failing
+- name: POSTCHECKS | Wait for 10min to have all service running or timeout/failing
   ansible.builtin.pause:
     minutes: 10
 
-- name: Load service facts
+- name: POSTCHECKS | Load service facts
   ansible.builtin.service_facts:
 
-- name: Register services as a list
+- name: POSTCHECKS | Register services as a list
   ansible.builtin.set_fact:
     services_list: "{{ ansible_facts.services | dict2items }}"
 
-- name: Enable email notification if any services are in failed state
+- name: POSTCHECKS | Enable email notification if any services are in failed state
   when: item.value.state == "failed"
   loop: "{{ services_list }}"
   loop_control:
@@ -18,10 +18,8 @@
   ansible.builtin.set_fact:
     send_service_failed_notification: true
 
-- name: Email notification when services are in failed state
-  when:
-    - send_service_failed_notification is defined
-    - send_service_failed_notification
+- name: POSTCHECKS | Email notification when services are in failed state
+  when: (send_service_failed_notification | default({}))
   delegate_to: localhost
   community.general.mail:
     from: "{{ notification_sender }}"
