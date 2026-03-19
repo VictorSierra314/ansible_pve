@@ -1,16 +1,15 @@
 ---
 - name: Upgrade hypervisor
   block:
-
     - name: Upgrade pve hypervisor
+      register: pve_upgrade
       ansible.builtin.apt:
         update_cache: true
         upgrade: full
-      register: pve_upgrade
 
   rescue:
-
     - name: Send a notification on failure
+      delegate_to: localhost
       community.general.mail:
         from: "{{ notification_sender }}"
         to: "{{ notification_email }}"
@@ -24,7 +23,6 @@
           {{ inventory_hostname }} - apt upgrade FAILED
           ---------------------------
           {{ pve_upgrade | to_nice_yaml }}
-      delegate_to: localhost
 
     - name: Exit playbook
       ansible.builtin.fail:
@@ -33,17 +31,12 @@
 ##### End of block - Upgrade hypervisor
 
 - name: Display pve upgrade output
+  when: enable_debug | default('false') | bool
   debug:
     var: pve_upgrade.stdout_lines
-  when: enable_debug | default('false') | bool
 
 - name: Check if reboot is necessary
-  stat:
-    path: /var/run/reboot-required
+  changed_when: reboot_check.stdout | length > 0
+  failed_when: reboot_check.stderr | length > 0
   register: reboot_check
-
-- name: Check for any new kernel version
-  shell: |
-    latest=$(uname -v | cut -f5 -d ' ')
-    dpkg -l | grep $latest | wc -l
-  register: kernel_version_check
+  command: needrestart -r a -p
