@@ -1,0 +1,35 @@
+---
+- name: List FS stats
+  hosts: all
+  gather_facts: false
+  vars:
+    file_target: mtlasaap25
+    file_path: /home/vsadys.admin/fs_space_usage_inv.csv
+    file_owner: 377048872
+  tasks:
+    - name: get FS list
+      register: fs_list
+      command: df -h --output=target,size,used,pcent
+
+    - name: print out fs
+      when: "'/home' in item or '/tmp' in item or '/var' in item"
+      loop: "{{ fs_list.stdout_lines }}"
+      loop_control:
+        label: "{{ item.split()[0] }}"
+      debug:
+        msg: "{{ inventory_hostname }},{{ item.split()[0] }},{{ item.split()[1] }},{{ item.split()[2] }},{{ item.split()[3] }}"
+
+    - name: Add line to the inventory file
+      become: true
+      when: "'/home' in item or '/tmp' in item or '/var' in item"
+      loop: "{{ fs_list.stdout_lines }}"
+      loop_control:
+        label: "{{ item.split()[0] }}"
+        pause: 1
+      delegate_to: "{{ file_target }}"
+      lineinfile:
+        path: '{{ file_path }}'
+        regexp: '^{{ inventory_hostname }},{{ item.split()[0] }},{{ item.split()[1] }},{{ item.split()[2] }},{{ item.split()[3] }}'
+        line: '{{ inventory_hostname }},{{ item.split()[0] }},{{ item.split()[1] }},{{ item.split()[2] }},{{ item.split()[3] }}'
+        owner: '{{ file_owner }}'
+        create: true
