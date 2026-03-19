@@ -4,28 +4,28 @@
     - name: RHEL | Clean leaf packages
       when: ansible_os_family == 'RedHat'
       register: autorm_out
-      yum:
+      ansible.builtin.yum:
         autoremove: true
 
     - name: DEB | Clean leaf packages
       when: ansible_os_family == 'Debian'
       register: autorm_out
-      apt:
+      ansible.builtin.apt:
         purge: true
         autoremove: true
 
     - name: RHEL&DEB | Print autoremove output
-      when: 
+      when:
         - autorm_out.changed is defined
         - autorm_out.changed
         - print_autorm_output|default('false')|bool
-      debug:
+      ansible.builtin.debug:
         msg: "{{ autorm_out }}"
 
   rescue:
     - name: Email notification on failure
       delegate_to: localhost
-      mail:
+      community.general.mail:
         from: "{{ notification_sender }}"
         to: "{{ notification_email }}"
         host: "{{ smtp_host }}"
@@ -42,10 +42,10 @@
           Date: {{ ansible_date_time.date }}
           Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
           Output:
-          {{ autorm_out  | to_nice_json }}
+          {{ autorm_out | to_nice_json }}
 
 - name: RHEL | If kernel clean up ran do a last reboot
-  when: 
+  when:
     - rhel_kernel_cleanup.changed is defined
     - enable_reboot|bool
-  reboot:
+  ansible.builtin.reboot:

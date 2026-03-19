@@ -2,66 +2,69 @@
 # tasks file for pve_vm_patching
 - name: Snapshot host before update
   when: enable_snapshot | default('true') | bool
-  include_tasks: 1_snapshot_host.yml
+  ansible.builtin.include_tasks: 1_snapshot_host.yml
 
 - name: Update podman images
   when: update_podman_images|default('false')|bool
-  include_tasks: 2_podman_images_update.yml
+  ansible.builtin.include_tasks: 2_podman_images_update.yml
 
 - name: Patch all OS
   when:
     - inventory_hostname not in groups['satellite_server_group']
     - inventory_hostname not in groups['satellite_capsule_group']
-  include_tasks: 3_os_patching.yml
+  ansible.builtin.include_tasks: 3_os_patching.yml
 
 - name: Patch Satellites capsules instances
-  include_tasks: 4_satellite_patching.yml 
   when: inventory_hostname in groups['satellite_capsule_group']
+  ansible.builtin.include_tasks: 4_satellite_patching.yml
 
 - name: Patch Satellites server instances
-  include_tasks: 4_satellite_patching.yml 
   when: inventory_hostname in groups['satellite_server_group']
+  ansible.builtin.include_tasks: 4_satellite_patching.yml
 
 - name: Check if a reboot is necessary
   when:
     - rhel_patch_out is defined or deb_patch_out is defined
     - rhel_patch_out.changed or deb_patch_out.changed
     - enable_reboot | default('true') | bool
-  include_tasks: 5_reboot_check.yml
+  ansible.builtin.include_tasks: 5_reboot_check.yml
 
 - name: Clean previous kernels
-  when: 
+  when:
     - enable_kernel_cleanup|default('false')|bool
     - ansible_os_family == 'RedHat'
     - new_kernel is defined
     - new_kernel.changed
     - inventory_hostname not in groups['satellite_server_group']
     - inventory_hostname not in groups['satellite_capsule_group']
-  include_tasks: 6_kernel_cleanup.yml
+  ansible.builtin.include_tasks: 6_kernel_cleanup.yml
 
 - name: Clean leaf packages
-  when: 
+  when:
     - rhel_patch_out is defined or deb_patch_out is defined
     - rhel_patch_out.changed or deb_patch_out.changed
-  include_tasks: 7_leaf_packages_cleanup.yml 
+  ansible.builtin.include_tasks: 7_leaf_packages_cleanup.yml
 
 - name: Post update service check
-  when: 
+  when:
     - inventory_hostname not in service_check_exceptions
     - rhel_patch_out is defined or deb_patch_out is defined
     - rhel_patch_out.changed or deb_patch_out.changed
-  include_tasks: 8_postupdate_service_check.yml
+  ansible.builtin.include_tasks: 8_postupdate_service_check.yml
 
 - name: Update Redhat insight
-  when: 
+  when:
     - rhel_patch_out.changed
     - force_insight_refresh is defined
     - ansible_distribution == 'RedHat'
-  shell: 'insights-client'
+  register: insight_refresh_result
+  changed_when: insight_refresh_result.rc == 0
+  failed_when: insight_refresh_result.rc != 0
+  ansible.builtin.command: 'insights-client'
 
 - name: Trigger final report email
   changed_when: true
   run_once: true
   notify: Email report
-  debug:
+  ansible.builtin.debug:
     msg: "Trigger final report email"
