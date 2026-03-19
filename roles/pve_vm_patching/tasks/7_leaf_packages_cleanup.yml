@@ -19,7 +19,14 @@
         - (rpm_autorm_out | default({})).changed or (deb_autorm_out | default({})).changed
         - print_autorm_output | default('false') | bool
       ansible.builtin.debug:
-        msg: "{{ autorm_out }}"
+        msg: |
+          {% if ansible_os_family == 'RedHat' %}
+          {{ rpm_autorm_out }}
+          {% elif ansible_os_family == 'Debian' %}
+          {{ deb_autorm_out }}
+          {% else %}
+          OS familly not recognized
+          {% endif %}
 
   rescue:
     - name: CLEANUP | Email notification on failure
@@ -41,4 +48,10 @@
           Date: {{ ansible_date_time.date }}
           Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
           Output:
-          {{ autorm_out | to_nice_json }}
+          {% if ansible_os_family == 'RedHat' %}
+          {{ rpm_autorm_out | to_nice_yaml }}
+          {% elif ansible_os_family == 'Debian' %}
+          {{ deb_autorm_out | to_nice_yaml }}
+          {% else %}
+          OS familly not recognized
+          {% endif %}
