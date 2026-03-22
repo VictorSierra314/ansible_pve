@@ -23,7 +23,7 @@
           {% if ansible_os_family == 'RedHat' %}
           {{ rpm_autorm_out }}
           {% elif ansible_os_family == 'Debian' %}
-          {{ deb_autorm_out }}
+          {{ deb_autorm_out.stdout_lines }}
           {% else %}
           OS familly not recognized
           {% endif %}

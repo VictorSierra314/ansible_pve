@@ -3,7 +3,7 @@
   changed_when: needs_reboot_result.stdout | length > 0
   failed_when: needs_reboot_result.stderr | length > 0
   register: needs_reboot_result
-  command: >
+  ansible.builtin.command: >
     {% if ansible_os_family == 'Debian' %}
     needrestart -r a -p
     {% elif ansible_os_family == 'RedHat' %}
@@ -13,15 +13,16 @@
     {% endif %}
 
 - name: REBOOT | Gracefully stop all containers before reboot
-  when: 
+  when:
     - needs_reboot_result.rc != 0
     - podman_images_list is defined
     - podman_images_list | length > 0
+  become: true
   become_user: "{{ podman_user }}"
   loop: "{{ podman_images_list }}"
   loop_control:
     label: "{{ item.name }}"
-  systemd:
+  ansible.builtin.systemd:
     name: "{{ item.scr }}"
     scope: user
     state: stopped
@@ -29,10 +30,10 @@
 - name: REBOOT | Reboot the host if required
   when: needs_reboot_result.rc != 0
   register: new_kernel
-  reboot:
+  ansible.builtin.reboot:
 
 - name: REBOOT | Wait for all host to be available before moving on
   when: needs_reboot_result.rc != 0
   register: wait_for_host
-  wait_for_connection:
+  ansible.builtin.wait_for_connection:
     timeout: "{{ after_reboot_delay | default('600') }}"

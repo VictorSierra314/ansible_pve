@@ -32,11 +32,11 @@
 
 - name: Display pve upgrade output
   when: enable_debug | default('false') | bool
-  debug:
+  ansible.builtin.debug:
     var: pve_upgrade.stdout_lines
 
 - name: Check if reboot is necessary
   changed_when: reboot_check.stdout | length > 0
   failed_when: reboot_check.stderr | length > 0
   register: reboot_check
-  command: needrestart -r a -p
+  ansible.builtin.command: needrestart -r a -p

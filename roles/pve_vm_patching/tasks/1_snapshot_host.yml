@@ -26,23 +26,24 @@
     - name: SNAPSHOT | Compute snapshot removal date for cron, {{ snapshot_rm_delay }}h delay
       register: snapshot_rm_datetime
       delegate_to: localhost
-      run_once: yes
+      run_once: true
+      changed_when: snapshot_rm_datetime.rc == 0
+      failed_when: snapshot_rm_datetime.rc != 0
       ansible.builtin.command: >
-        date -d "@{{ ansible_date_time.epoch | int + snapshot_rm_delay * 3600 }}"
-        "+%M %H %d %m"
+        date -d "@{{ ansible_date_time.epoch | int + snapshot_rm_delay * 3600 }}" "+%M %H %d %m"
 
     - name: SNAPSHOT | Extract cron fields from snapshot removal datetime
       delegate_to: localhost
-      run_once: yes
+      run_once: true
       ansible.builtin.set_fact:
         snapshot_rm_minute: "{{ snapshot_rm_datetime.stdout.split()[0] }}"
-        snapshot_rm_hour:   "{{ snapshot_rm_datetime.stdout.split()[1] }}"
-        snapshot_rm_day:    "{{ snapshot_rm_datetime.stdout.split()[2] }}"
-        snapshot_rm_month:  "{{ snapshot_rm_datetime.stdout.split()[3] }}"
-    
+        snapshot_rm_hour: "{{ snapshot_rm_datetime.stdout.split()[1] }}"
+        snapshot_rm_day: "{{ snapshot_rm_datetime.stdout.split()[2] }}"
+        snapshot_rm_month: "{{ snapshot_rm_datetime.stdout.split()[3] }}"
+
     - name: SNAPSHOT | Schedule snapshot removal cron {{ snapshot_rm_delay }}h later
       delegate_to: "{{ cron_scheduler }}"
-      run_once: yes
+      run_once: true
       ansible.builtin.cron:
         name: "{{ snapshot_cron_name }}"
         cron_file: "/etc/cron.d/{{ snapshot_cron_file }}"

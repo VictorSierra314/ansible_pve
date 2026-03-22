@@ -1,7 +1,10 @@
 ---
 # handlers file for pve_vm_patching
 - name: Email report
-  mail:
+  when: enable_report|default('true')|bool
+  delegate_to: localhost
+  run_once: true
+  community.general.mail:
     from: "{{ notification_sender }}"
     to: "{{ notification_email }}"
     host: "{{ smtp_host }}"
@@ -25,37 +28,34 @@
       {% for host in ansible_play_batch %}
       {% set os_family = hostvars[host]['ansible_os_family'] %}
       {% if os_family == 'RedHat' %}
-      - {{ host }}: Patched: {% if hostvars[host]['rhel_patch_out'] is defined and hostvars[host]['rhel_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %} 
+      - {{ host }}: Patched: {% if hostvars[host]['rhel_patch_out'] is defined and hostvars[host]['rhel_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %}
       {% elif os_family == 'Debian' %}
-      - {{ host }}: Patched: {% if hostvars[host]['deb_patch_out'] is defined and hostvars[host]['deb_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %} 
+      - {{ host }}: Patched: {% if hostvars[host]['deb_patch_out'] is defined and hostvars[host]['deb_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %}
       {% endif %}
       {% endfor %}
-    
+
        ERRORS, if there are any:
       {% for host in ansible_play_hosts_all %}
       {% set hv = hostvars[host] %}
-      {% if hv['vm_info'] is defined and hv['vm_info'].failed is defined and hv['vm_info'].failed|bool %}
-      {{ host }} - Could not find the host in VMWare, snapshot not taken 
+      {% if hv['vm_info'] is defined and hv['vm_info'].failed is defined and hv['vm_info'].failed | bool %}
+      {{ host }} - Could not find the host in VMWare, snapshot not taken
       {% endif %}
-      {% if hv['create_snap'] is defined and hv['create_snap'].failed is defined and hv['create_snap'].failed|bool %}
-      {{ host }} - Snapshot error, VM was not patched 
+      {% if hv['create_snap'] is defined and hv['create_snap'].failed is defined and hv['create_snap'].failed | bool %}
+      {{ host }} - Snapshot error, VM was not patched
       {% endif %}
-      {% if hv['rhel_patch_out'] is defined and hv['rhel_patch_out'].failed is defined and hv['rhel_patch_out'].failed|bool %}
-      {{ host }} - Patching error 
+      {% if hv['rhel_patch_out'] is defined and hv['rhel_patch_out'].failed is defined and hv['rhel_patch_out'].failed | bool %}
+      {{ host }} - Patching error
       {% endif %}
-      {% if hv['deb_patch_out'] is defined and hv['deb_patch_out'].failed is defined and hv['deb_patch_out'].failed|bool %}
-      {{ host }} - Patching error 
+      {% if hv['deb_patch_out'] is defined and hv['deb_patch_out'].failed is defined and hv['deb_patch_out'].failed | bool %}
+      {{ host }} - Patching error
       {% endif %}
-      {% if hv['new_kernel'] is defined and hv['new_kernel'].failed is defined and hv['new_kernel'].failed|bool %}
-      {{ host }} - Reboot task failed, host is either stuck or took longer than 10min to reboot 
+      {% if hv['new_kernel'] is defined and hv['new_kernel'].failed is defined and hv['new_kernel'].failed | bool %}
+      {{ host }} - Reboot task failed, host is either stuck or took longer than 10min to reboot
       {% endif %}
-      {% if hv['autorm_out'] is defined and hv['autorm_out'].failed is defined and hv['autorm_out'].failed|bool %}
-      {{ host }} - Leaf packages removal error 
+      {% if hv['autorm_out'] is defined and hv['autorm_out'].failed is defined and hv['autorm_out'].failed | bool %}
+      {{ host }} - Leaf packages removal error
       {% endif %}
-      {% if hv['wait_for_host'] is defined and hv['wait_for_host'].failed is defined and hv['wait_for_host'].failed|bool %}
+      {% if hv['wait_for_host'] is defined and hv['wait_for_host'].failed is defined and hv['wait_for_host'].failed | bool %}
       {{ host }} - Failed to come back after reboot
       {% endif %}
       {% endfor %}
-  run_once: true
-  delegate_to: localhost
-  when: enable_report|default('true')|bool

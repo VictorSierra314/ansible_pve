@@ -14,10 +14,10 @@
       register: deb_patch_out
       ansible.builtin.apt:
         update_cache: true
-        upgrade: yes
+        upgrade: true
 
     - name: PATCHING | DEBUG | Print patching output
-      when: 
+      when:
         - (rhel_patch_out | default({})).changed or
           (deb_patch_out | default({})).changed
         - print_patching_output | default('false') | bool
@@ -32,13 +32,16 @@
           {% endif %}
 
     - name: PATCHING | Clean up yum cache
-      when: 
+      when:
         - ansible_os_family == 'RedHat'
         - enable_pmcache_cleanup | default('false') | bool
+      register: yum_clean_out_result
+      changed_when: yum_clean_out_result.rc == 0
+      failed_when: yum_clean_out_result.rc != 0
       ansible.builtin.command: "yum clean all"
 
     - name: PATCHING | Clean up apt cache
-      when: 
+      when:
         - ansible_os_family == 'Debian'
         - enable_pmcache_cleanup | default('false') | bool
       ansible.builtin.apt:

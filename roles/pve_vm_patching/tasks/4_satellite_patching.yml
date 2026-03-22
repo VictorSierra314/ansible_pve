@@ -11,8 +11,8 @@
     echo "======================== Exit code for run: $?"
 
 - name: SATELITTE | DEBUG | Print out yum output
-  when: 
+  when:
     - rhel_patch_out.results is defined
-    - print_patching_output|default('false')|bool 
+    - print_patching_output|default('false')|bool
   ansible.builtin.debug:
     var: rhel_patch_out.results

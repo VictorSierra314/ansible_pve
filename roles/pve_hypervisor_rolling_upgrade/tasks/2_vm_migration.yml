@@ -1,26 +1,34 @@
 ---
 - name: Gather {{ inventory_hostname }} VMs information
-  uri:
+  delegate_to: localhost
+  register: node_vms_list
+  ansible.builtin.uri:
     url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/qemu"
     method: GET
     headers:
       Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
     validate_certs: "{{ pve_check_cert | default('false') }}"
-  register: node_vms_list
-  delegate_to: localhost
 
 - name: Gather {{ inventory_hostname }} LXC information
-  uri:
+  register: node_lxc_list
+  delegate_to: localhost
+  ansible.builtin.uri:
     url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/lxc"
     method: GET
     headers:
       Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
     validate_certs: "{{ pve_check_cert | default('false') }}"
-  register: node_lxc_list
-  delegate_to: localhost
 
 - name: Migrate {{ inventory_hostname }} LXC - even to {{ target_node_even }}, odd to {{ target_node_odd }}
-  ignore_errors: true
+  when:
+    - node_lxc_list.json.data[0] is defined
+    - item.status == 'running'
+  failed_when: false
+  delegate_to: localhost
+  loop: "{{ node_lxc_list.json.data }}"
+  loop_control:
+    pause: "{{ migration_loop_delay | default('5') }}"
+    label: "{{ item.vmid }} - {{ item.name }}, to {% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
   ansible.builtin.uri:
     url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname }}/lxc/{{ item.vmid }}/migrate"
     method: POST
@@ -33,17 +41,17 @@
       restart: 1
     status_code: 200
     return_content: true
-  loop: "{{ node_lxc_list.json.data }}"
+
+- name: Migrate {{ inventory_hostname }} VMs - even to {{ target_node_even }}, odd to {{ target_node_odd }}
+  when:
+    - node_vms_list.json.data[0] is defined
+    - item.status == 'running'
+  failed_when: false
+  delegate_to: localhost
+  loop: "{{ node_vms_list.json.data }}"
   loop_control:
     pause: "{{ migration_loop_delay | default('5') }}"
     label: "{{ item.vmid }} - {{ item.name }}, to {% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
-  when:
-    - node_lxc_list.json.data[0] is defined
-    - item.status == 'running'
-  delegate_to: localhost
-
-- name: Migrate {{ inventory_hostname }} VMs - even to {{ target_node_even }}, odd to {{ target_node_odd }}
-  ignore_errors: true
   community.proxmox.proxmox_kvm:
     api_host: "{{ pve_api_node }}"
     api_user: "{{ pve_api_user }}"
@@ -53,27 +61,19 @@
     migrate: true
     node: "{% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
     validate_certs: "{{ pve_check_cert | default('false') }}"
-  loop: "{{ node_vms_list.json.data }}"
-  loop_control:
-    pause: "{{ migration_loop_delay | default('5') }}"
-    label: "{{ item.vmid }} - {{ item.name }}, to {% if item.vmid is even %}{{ target_node_even }}{% elif item.vmid is odd %}{{ target_node_odd }}{% endif %}"
-  when:
-    - node_vms_list.json.data[0] is defined
-    - item.status == 'running'
-  delegate_to: localhost
 
 - name: Check VMs migration
   block:
     - name: Check {{ inventory_hostname }} remaining LXC
-      uri:
+      register: migration_lxc_check
+      ansible.builtin.uri:
         url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/lxc"
         method: GET
         headers:
           Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
         validate_certs: "{{ pve_check_cert | default('false') }}"
-      register: migration_lxc_check
       until: >
-        ( 
+        (
           migration_lxc_check.json is defined and
           migration_lxc_check.json.data is defined and
           (
@@ -87,15 +87,15 @@
       delay: "{{ migration_check_delay | default('10') }}"
 
     - name: Check {{ inventory_hostname }} remaining VMs
-      uri:
+      register: migration_vm_check
+      ansible.builtin.uri:
         url: "https://{{ pve_api_node }}.{{ pve_domain }}:8006/api2/json/nodes/{{ inventory_hostname | lower }}/qemu"
         method: GET
         headers:
           Authorization: "PVEAPIToken={{ pve_api_user }}!{{ pve_api_token }}={{ pve_api_secret }}"
         validate_certs: "{{ pve_check_cert | default('false') }}"
-      register: migration_vm_check
       until: >
-        ( 
+        (
           migration_vm_check.json is defined and
           migration_vm_check.json.data is defined and
           (
@@ -109,28 +109,9 @@
       delay: "{{ migration_check_delay | default('10') }}"
 
   rescue:
-    - name: Migration failure debug output
-      debug:
-        msg: |
-          ---------------------------
-          {{ inventory_hostname }} - VMs/LXC migration FAILED
-          ---------------------------
-          The following VMs/LXC are still on the node, node upgrade was aborted.
-          {% for i in migration_vm_check.json.data %}
-          {% if i.state == "running" %}
-          - {{ i.name }}, vmid: {{ i.vmid }}, state: {{ i.status }}
-          {% endif %}
-          {% endfor %}
-          {% for j in migration_lxc_check.json.data %}
-          {% if j.state == "running" %}
-          - {{ j.name }}, vmid: {{ j.vmid }}, state: {{ j.status }}
-          {% endif %}
-          {% endfor %}
-      delegate_to: localhost
-      when: enable_debug | default('false') | bool
-
     - name: Send notification with log in case of failure
-      mail:
+      delegate_to: localhost
+      community.general.mail:
         from: "{{ notification_sender }}"
         to: "{{ notification_email }}"
         host: "{{ smtp_host }}"
@@ -154,10 +135,9 @@
           - {{ j.name }}, vmid: {{ j.vmid }}, state: {{ j.status }}
           {% endif %}
           {% endfor %}
-      delegate_to: localhost
 
     - name: Exit playbook
-      fail:
+      ansible.builtin.fail:
         msg: "ERROR - VMs are still present in {{ inventory_hostname }}"
 
 ########## END of Block
