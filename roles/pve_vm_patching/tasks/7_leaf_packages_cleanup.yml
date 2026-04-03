@@ -2,13 +2,17 @@
 - name: Clean leaf packages
   block:
     - name: CLEANUP | Clean leaf rpm packages
-      when: ansible_os_family == 'RedHat'
+      when: 
+        - ansible_os_family == 'RedHat'
+        - rpm_autorm_out is defined
       register: rpm_autorm_out
       ansible.builtin.yum:
         autoremove: true
 
     - name: CLEANUP | Clean leaf deb packages
-      when: ansible_os_family == 'Debian'
+      when: 
+        - ansible_os_family == 'Debian'
+        - deb_autorm_out is defined
       register: deb_autorm_out
       ansible.builtin.apt:
         purge: true
