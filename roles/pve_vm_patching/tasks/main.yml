@@ -50,8 +50,8 @@
 
 - name: Update Redhat insight
   when:
-    - rhel_patch_out.changed
-    - force_insight_refresh is defined
+    - (rhel_patch_out | default({})).changed
+    - (force_insight_refresh | default({})) | bool
     - ansible_distribution == 'RedHat'
   register: insight_refresh_result
   changed_when: insight_refresh_result.rc == 0
