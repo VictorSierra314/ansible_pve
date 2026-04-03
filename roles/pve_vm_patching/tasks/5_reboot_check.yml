@@ -23,7 +23,7 @@
   loop_control:
     label: "{{ item.name }}"
   ansible.builtin.systemd:
-    name: "{{ item.scr }}"
+    name: "{{ item.src }}"
     scope: user
     state: stopped
 
