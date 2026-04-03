@@ -28,12 +28,12 @@
       {% for host in ansible_play_batch %}
       {% set os_family = hostvars[host]['ansible_os_family'] %}
       {% if os_family == 'RedHat' %}
-      - {{ host }}: Patched: {% if hostvars[host]['rhel_patch_out'] is defined and hostvars[host]['rhel_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %}
+      - {{ host }}: Patched: {% if hostvars[host]['rhel_patch_out'] is defined and hostvars[host]['rhel_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %} 
       {% elif os_family == 'Debian' %}
-      - {{ host }}: Patched: {% if hostvars[host]['deb_patch_out'] is defined and hostvars[host]['deb_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %}
+      - {{ host }}: Patched: {% if hostvars[host]['deb_patch_out'] is defined and hostvars[host]['deb_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %} 
       {% endif %}
       {% endfor %}
-
+      
        ERRORS, if there are any:
       {% for host in ansible_play_hosts_all %}
       {% set hv = hostvars[host] %}
