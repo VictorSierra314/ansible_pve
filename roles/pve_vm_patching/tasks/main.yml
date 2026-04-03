@@ -1,32 +1,32 @@
 ---
 # tasks file for pve_vm_patching
-- name: Snapshot host before update
+- name: MAIN | Snapshot host before update
   when: enable_snapshot | default('true') | bool
   ansible.builtin.include_tasks: 1_snapshot_host.yml
 
-- name: Update podman images
+- name: MAIN | Update podman images
   when: update_podman_images|default('false')|bool
   ansible.builtin.include_tasks: 2_podman_images_update.yml
 
-- name: Patch all OS
+- name: MAIN | Patch all OS
   when:
     - inventory_hostname not in groups['satellite_server_group']
     - inventory_hostname not in groups['satellite_capsule_group']
   ansible.builtin.include_tasks: 3_os_patching.yml
 
-- name: Patch Satellites capsules instances
+- name: MAIN | Patch Satellites capsules instances
   when: inventory_hostname in groups['satellite_capsule_group']
   ansible.builtin.include_tasks: 4_satellite_patching.yml
 
-- name: Patch Satellites server instances
+- name: MAIN | Patch Satellites server instances
   when: inventory_hostname in groups['satellite_server_group']
   ansible.builtin.include_tasks: 4_satellite_patching.yml
 
-- name: Check if a reboot is necessary
+- name: MAIN | Check if a reboot is necessary
   when: enable_reboot | default('true') | bool
   ansible.builtin.include_tasks: 5_reboot_check.yml
 
-- name: Clean previous kernels | RPM based OS only
+- name: MAIN | Clean previous kernels | RPM based OS only
   when:
     - enable_kernel_cleanup|default('false')|bool
     - ansible_os_family == 'RedHat'
@@ -35,20 +35,20 @@
     - inventory_hostname not in groups['satellite_capsule_group']
   ansible.builtin.include_tasks: 6_kernel_cleanup.yml
 
-- name: Clean leaf packages
+- name: MAIN | Clean leaf packages
   when: >
     (rhel_patch_out | default({})).changed or
     (deb_patch_out | default({})).changed
   ansible.builtin.include_tasks: 7_leaf_packages_cleanup.yml
 
-- name: Post update service check
+- name: MAIN | Post update service check
   when:
     - inventory_hostname not in service_check_exceptions
     - rhel_patch_out is defined or deb_patch_out is defined
     - rhel_patch_out.changed or deb_patch_out.changed
   ansible.builtin.include_tasks: 8_postupdate_service_check.yml
 
-- name: Update Redhat insight
+- name: MAIN | Update Redhat insight
   when:
     - (rhel_patch_out | default({})).changed
     - (force_insight_refresh | default({})) | bool
@@ -58,7 +58,7 @@
   failed_when: insight_refresh_result.rc != 0
   ansible.builtin.command: 'insights-client'
 
-- name: Trigger final report email
+- name: MAIN | Trigger final report email
   changed_when: true
   run_once: true
   notify: Email report

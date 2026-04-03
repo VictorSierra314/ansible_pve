@@ -16,10 +16,18 @@
         update_cache: true
         upgrade: true
 
+    - name: PATCHING | Update & upgrade Alpine based OS
+      when: ansible_os_family == 'Alpine'
+      register: alp_patch_out
+      community.general.apk:
+        update_cache: true
+        upgrade: true
+
     - name: PATCHING | DEBUG | Print patching output
       when:
         - (rhel_patch_out | default({})).changed or
-          (deb_patch_out | default({})).changed
+          (deb_patch_out | default({})).changed or
+          (alp_patch_out | default({})).changed
         - print_patching_output | default('false') | bool
       ansible.builtin.debug:
         msg: |
@@ -27,6 +35,8 @@
           {{ rhel_patch_out.results }}
           {% elif ansible_os_family == 'Debian' %}
           {{ deb_patch_out.stdout_lines }}
+          {% elif ansible_os_family == 'Alpine' %}
+          {{ alp_patch_out.packages }}
           {% else %}
           OS familly not recognized
           {% endif %}
@@ -72,4 +82,7 @@
           {% endif %}
           {% if ansible_os_family == 'Debian' %}
           {{ deb_patch_out | to_nice_json }}
+          {% endif %}
+          {% if ansible_os_family == 'Alpine' %}
+          {{ alp_patch_out | to_nice_json }}
           {% endif %}
