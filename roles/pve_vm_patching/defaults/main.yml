@@ -35,7 +35,8 @@
 # kernel_versions_cap:      # number - maximum version of kernel kept (RHEL only)
 # enable_pmcache_cleanup:   # boolean - DEFAULT FALSE - Run yum/apt cache clean up after upgrade
 # enable_reboot:            # boolean - DEFAULT TRUE - enable/disable reboot check after upgrade
+# force_reboot:             # boolean - DEFAULT FALSE - Force reboot if VM patched
 # after_reboot_delay:       # number - DEFAULT 600 - In minutes, how long the task will wait for the host to reboot before failing
-service_check_exceptions: # list - host that will not get their services checked after reboot
-  - placeholder
+#service_check_exceptions: # list - host that will not get their services checked after reboot
+#  - placeholder
 # force_insight_refresh:    # boolean - DEFAULT FALSE - Enable/disable insight update if patching hapenned

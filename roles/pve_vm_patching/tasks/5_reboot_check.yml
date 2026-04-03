@@ -27,8 +27,10 @@
     scope: user
     state: stopped
 
-- name: REBOOT | Reboot the host if required
-  when: needs_reboot_result.rc != 0
+- name: REBOOT | Reboot the host if required or forced
+  when: >
+    needs_reboot_result.rc != 0 or
+    force_reboot | default(false) | bool
   register: new_kernel
   ansible.builtin.reboot:
 

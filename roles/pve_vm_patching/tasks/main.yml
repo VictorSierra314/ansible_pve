@@ -44,8 +44,8 @@
 - name: MAIN | Post update service check
   when:
     - inventory_hostname not in service_check_exceptions
-    - rhel_patch_out is defined or deb_patch_out is defined
-    - rhel_patch_out.changed or deb_patch_out.changed
+    - (rhel_patch_out | default({})).changed or
+      (deb_patch_out | default({})).changed
   ansible.builtin.include_tasks: 8_postupdate_service_check.yml
 
 - name: MAIN | Update Redhat insight

@@ -28,9 +28,11 @@
       {% for host in ansible_play_batch %}
       {% set os_family = hostvars[host]['ansible_os_family'] %}
       {% if os_family == 'RedHat' %}
-      - {{ host }}: Patched: {% if hostvars[host]['rhel_patch_out'] is defined and hostvars[host]['rhel_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %} 
+      - {{ host }}: Patched: {% if (hostvars[host]['rhel_patch_out'] | default({})).changed %}YES{% else %}NO{% endif %}; Rebooted: {% if (hostvars[host]['new_kernel'] | default({})).changed %}YES{% else %}NO{% endif %} 
       {% elif os_family == 'Debian' %}
-      - {{ host }}: Patched: {% if hostvars[host]['deb_patch_out'] is defined and hostvars[host]['deb_patch_out']['changed'] %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'] is defined %}YES{% else %}NO{% endif %} 
+      - {{ host }}: Patched: {% if (hostvars[host]['deb_patch_out'] | default({})).changed %}YES{% else %}NO{% endif %}; Rebooted: {% if (hostvars[host]['new_kernel'] | default({})).changed %}YES{% else %}NO{% endif %} 
+      {% elif os_family == 'Alpine' %}
+      - {{ host }}: Patched: {% if (hostvars[host]['alp_patch_out'] | default({})).changed %}YES{% else %}NO{% endif %}; Rebooted: {% if (hostvars[host]['new_kernel'] | default({})).changed %}YES{% else %}NO{% endif %} 
       {% endif %}
       {% endfor %}
       
@@ -49,6 +51,9 @@
       {% if hv['deb_patch_out'] is defined and hv['deb_patch_out'].failed is defined and hv['deb_patch_out'].failed | bool %}
       {{ host }} - Patching error
       {% endif %}
+      {% if hv['alp_patch_out'] is defined and hv['alp_patch_out'].failed is defined and hv['alp_patch_out'].failed | bool %}
+      {{ host }} - Patching error
+      {% endif %}
       {% if hv['new_kernel'] is defined and hv['new_kernel'].failed is defined and hv['new_kernel'].failed | bool %}
       {{ host }} - Reboot task failed, host is either stuck or took longer than 10min to reboot
       {% endif %}
@@ -59,3 +64,4 @@
       {{ host }} - Failed to come back after reboot
       {% endif %}
       {% endfor %}
+
