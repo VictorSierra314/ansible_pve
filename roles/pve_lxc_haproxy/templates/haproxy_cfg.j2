@@ -32,12 +32,12 @@ defaults
     option forwardfor       except 127.0.0.0/8
     option                  redispatch
     retries                 3
-    timeout http-request    {{ haproxy_timeout_http-req }}
+    timeout http-request    {{ haproxy_timeout_http_req }}
     timeout queue           {{ haproxy_timeout_queue }}
     timeout connect         {{ haproxy_timeout_connect }}
     timeout client          {{ haproxy_timeout_client }}
     timeout server          {{ haproxy_timeout_server }}
-    timeout http-keep-alive {{ haproxy_timeout_http-keep-alive }}
+    timeout http-keep-alive {{ haproxy_timeout_http_keep_alive }}
     timeout check           {{ haproxy_timeout_check }}
     maxconn                 {{ haproxy_maxconn }}
 
@@ -53,27 +53,27 @@ frontend https_front
     bind {{ haproxy_ingrerss_ip }}:443 ssl transparent crt {{ haproxy_cert_path }}
     http-request set-header X-Forwarded-Proto https if { ssl_fc }
 
-    {% for site in virtualhosts %}
+{% for site in virtualhosts %}
     # {{ site.name | upper }}
     acl {{ site.name }} hdr(host) -i {{ site.name }}.{{ site.domain | default(domain) }}
-    {% if (site.frontend_specific_acl | default({})) | lenght > 0 %}
-    {{ site.frontend_specific_acl }}
-    {% endif %}
+{% if (site.frontend_specific_acl | default({})) | length > 0 %}
+    {{ site.frontend_specific_acl | indent(4) }}
+{% endif %}
 
-    {% endfor %}
+{% endfor %}
 
     # BACKEND LINKS
-    {% for site in virtualhosts %}
+{% for site in virtualhosts %}
     use_backend {{ site.name }}_backend if {{ site.name }}
-    {% endfor %}
+{% endfor %}
 
 #---------------------------------------------------------------------
 # BACK ENDS
 #---------------------------------------------------------------------
 {% for site in virtualhosts %}
 backend {{ site.name }}_backend
-    {% for ip in site.backend_ip %}
-    server {{ site.name }}-{{ loop.index0 }} {{ ip }}:{{ site.backend_port }} {% if (site.backend_ssl | default({})) | bool %}ssl verify none{% else %}check{% endif %} {{ backend_additional_options | default('omit') }}
-    {% endfor %}
+{% for ip in site.backend_ip %}
+    server {{ site.name }}-{{ loop.index0 }} {{ ip }}:{{ site.backend_port }} {% if (site.backend_ssl | default({})) | bool %}ssl verify none{% else %}check{% endif %} {{ backend_additional_options | default('') }}
+{% endfor %}
 
 {% endfor %}

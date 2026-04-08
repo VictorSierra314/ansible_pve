@@ -2,7 +2,14 @@
 # tasks file for pve_lxc_haproxy
 - name: Implement haproxy config
   notify: Restart haproxy
-  template:
+  ansible.builtin.template:
     src: haproxy_cfg.j2
     dest: /etc/haproxy/haproxy.cfg
     mode: 0600
+    backup: true
+
+#- name: Transfer certs and keys
+#  delegate_to: {{ certificate_manager }}
+#  ansible.builtin.copy:
+#    content: |
+#      {{ certificate_manager_certs_src

@@ -1,2 +1,6 @@
 ---
 # handlers file for pve_lxc_haproxy
+- name: Restart haproxy
+  ansible.builtin.service:
+    name: haproxy
+    state: restarted
