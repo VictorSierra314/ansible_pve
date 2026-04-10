@@ -1,2 +1,29 @@
 ---
 # defaults file for pve_lxc_haproxy
+
+#certificate_manager:
+#certificate_manager_certs_src:
+#certificate_manager_keys_src:
+#haproxy_user: haproxy
+#haproxy_group: haproxy
+#haproxy_timeout_http_req: 10s
+#haproxy_timeout_queue: 1m
+#haproxy_timeout_connect: 10s
+#haproxy_timeout_client: 1m
+#haproxy_timeout_server: 1m
+#haproxy_timeout_http_keep_alive: 10s
+#haproxy_timeout_check: 10s 
+#haproxy_maxconn:
+#haproxy_ingrerss_ip:
+#haproxy_cert_path:
+#virtualhosts:
+#  - name: NAME
+#    backend_ip: 
+#      - IP1
+#      - IP2
+#    lb_mode: roundrobin/leastconn/source
+#    lb_sticky_sessions: BOOL default false
+#    backend_port: TCPPORT
+#    backend_ssl: BOOL default false
+#    backend_additional_options: 
+#    frontend_specific_acl: |-
