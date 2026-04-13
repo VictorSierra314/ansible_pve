@@ -8,8 +8,34 @@
     mode: 0600
     backup: true
 
-#- name: Transfer certs and keys
-#  delegate_to: {{ certificate_manager }}
-#  ansible.builtin.copy:
-#    content: |
-#      {{ certificate_manager_certs_src
+- name: Fetch certificates
+  when: item.local_certificate | default('true') | bool
+  delegate_to: "{{ certificate_manager }}"
+  run_once: true
+  loop: "{{ virtualhosts }}"
+  loop_control:
+    label: "{{ item.name }}"
+  ansible.builtin.fetch:
+    src: "{{ certificate_manager_pem_src }}/{{ item.name }}.{{ domain }}.{{ certificate_manager_pem_ext }}"
+    dest: "/tmp/certificates_transfer/"
+    flat: true
+
+- name: Transfer certificates to the HAproxy
+  when: item.local_certificate | default('true') | bool
+  notify: Restart haproxy
+  loop: "{{ virtualhosts }}"
+  loop_control:
+    label: "{{ item.name }}"
+  ansible.builtin.copy:
+    src: "{{ certificate_transfer_path }}/{{ item.name }}.{{ domain }}.{{ certificate_manager_pem_ext }}"
+    dest: "{{ haproxy_cert_path }}"
+    mode: 0400
+    owner: root
+    group: root
+
+- name: Clean up
+  delegate_to: localhost
+  run_once: true
+  ansible.builtin.file:
+    path: "{{ certificate_transfer_path }}"
+    state: absent
