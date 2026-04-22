@@ -1,0 +1,20 @@
+---
+# https://github.com/RedHatOfficial/ansible-role-rhel8-pci-dss
+- name: PCI-DSS v4.0.1 Control Baseline for Red Hat Enterprise Linux 8
+  hosts: all
+  become: true
+  ignore_errors: true
+  gather_facts: true
+  pre_tasks:
+    - name: Ensure --limit is used
+      run_once: true
+      ansible.builtin.assert:
+        that:
+          - ansible_limit is defined
+  tasks:
+    - name: Apply PCI DSS for RHEL 8
+      when:
+        - ansible_distribution == "RedHat"
+        - ansible_distribution_major_version == '8'
+      ansible.builtin.include_role:
+        name: ansible-role-rhel8-pci-dss

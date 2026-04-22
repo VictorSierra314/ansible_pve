@@ -1,0 +1,28 @@
+---
+# https://github.com/RedHatOfficial/ansible-role-rhel8-cis_server_l1
+- name: CIS Red Hat Enterprise Linux 8 Benchmark for Level 1 - Server
+  hosts: all
+  ignore_errors: true
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Ensure --limit is used
+      run_once: true
+      ansible.builtin.assert:
+        that:
+          - ansible_limit is defined
+  tasks:
+    # No CIS Lv1 Server for rhel7
+    #- name: Apply CIS Lv1 Server RHEL 7
+    #  when:
+    #    - ansible_distribution == "RedHat"
+    #    - ansible_distribution_major_version == '7'
+    #  ansible.builtin.include_role:
+    #    name: ansible-role-rhel7-cis_server_l1
+    - name: Apply CIS Lv1 Server RHEL 8
+      when:
+        - ansible_distribution == "RedHat"
+        - ansible_distribution_major_version == '8'
+      register: cis_run_rhel8
+      ansible.builtin.include_role:
+        name: ansible-role-rhel8-cis_server_l1
