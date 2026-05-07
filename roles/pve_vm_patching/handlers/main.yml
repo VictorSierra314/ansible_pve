@@ -28,11 +28,11 @@
       {% for host in ansible_play_batch %}
       {% set os_family = hostvars[host]['ansible_os_family'] %}
       {% if os_family == 'RedHat' %}
-       - {{ host }}: Patched: {% if (hostvars[host]['rhel_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if (hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
+       - {{ host }}: Patched: {% if hostvars[host]['rhel_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
       {% elif os_family == 'Debian' %}
-       - {{ host }}: Patched: {% if (hostvars[host]['deb_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if (hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
+       - {{ host }}: Patched: {% if hostvars[host]['deb_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
       {% elif os_family == 'Alpine' %}
-       - {{ host }}: Patched: {% if (hostvars[host]['alp_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if (hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
+       - {{ host }}: Patched: {% if hostvars[host]['alp_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
       {% endif %}
       {% endfor %}
 
