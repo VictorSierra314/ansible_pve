@@ -20,19 +20,16 @@
       ---------------------------
       Date: {{ ansible_date_time.date }}
       Run at: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
-      {% if ansible_log.files[0].path is defined %}
-      Log: {{ ansible_log.files[0].path }}
-      {% endif %}
       ---------------------------
       Servers list:
       {% for host in ansible_play_batch %}
       {% set os_family = hostvars[host]['ansible_os_family'] %}
       {% if os_family == 'RedHat' %}
-       - {{ host }}: Patched: {% if hostvars[host]['rhel_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
+      - {{ host }}: Patched: {% if hostvars[host]['rhel_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %} 
       {% elif os_family == 'Debian' %}
-       - {{ host }}: Patched: {% if hostvars[host]['deb_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
+      - {{ host }}: Patched: {% if hostvars[host]['deb_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %} 
       {% elif os_family == 'Alpine' %}
-       - {{ host }}: Patched: {% if hostvars[host]['alp_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
+      - {{ host }}: Patched: {% if hostvars[host]['alp_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %} 
       {% endif %}
       {% endfor %}
 
@@ -40,27 +37,27 @@
       {% for host in ansible_play_hosts_all %}
       {% set hv = hostvars[host] %}
       {% if hv['vm_info'] is defined and hv['vm_info'].failed | default(false) %}
-       {{ host }} - Could not find the host in VMWare, snapshot not taken
+      {{ host }} - Could not find the host in VMWare, snapshot not taken 
       {% endif %}
       {% if hv['create_snap'] is defined and hv['create_snap'].failed | default(false) %}
-       {{ host }} - Snapshot error, VM was not patched
+      {{ host }} - Snapshot error, VM was not patched 
       {% endif %}
       {% if hv['rhel_patch_out'] is defined and hv['rhel_patch_out'].failed | default(false) %}
-       {{ host }} - Patching error
+      {{ host }} - Patching error 
       {% endif %}
       {% if hv['deb_patch_out'] is defined and hv['deb_patch_out'].failed | default(false) %}
-       {{ host }} - Patching error
+      {{ host }} - Patching error 
       {% endif %}
       {% if hv['alp_patch_out'] is defined and hv['alp_patch_out'].failed | default(false) %}
-       {{ host }} - Patching error
+      {{ host }} - Patching error 
       {% endif %}
       {% if hv['new_kernel'] is defined and hv['new_kernel'].failed | default(false) %}
-       {{ host }} - Reboot task failed, host is either stuck or took longer than 10min to reboot
+      {{ host }} - Reboot task failed, host is either stuck or took longer than 10min to reboot 
       {% endif %}
       {% if hv['autorm_out'] is defined and hv['autorm_out'].failed | default(false) %}
-       {{ host }} - Leaf packages removal error
+      {{ host }} - Leaf packages removal error 
       {% endif %}
       {% if hv['wait_for_host'] is defined and hv['wait_for_host'].failed | default(false) %}
-       {{ host }} - Failed to come back after reboot
+      {{ host }} - Failed to come back after reboot 
       {% endif %}
       {% endfor %}
