@@ -1,5 +1,6 @@
 ---
 - name: PODMAN | Pull podman images
+  ignore_errors: true
   become: true
   become_user: "{{ podman_user }}"
   loop: "{{ podman_images_list }}"

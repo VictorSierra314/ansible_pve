@@ -9,7 +9,7 @@
     backup: true
 
 - name: Fetch certificates
-  when: item.local_certificate | default('true') | bool
+  when: not item.public_certificate | default('false') | bool
   delegate_to: "{{ certificate_manager }}"
   run_once: true
   loop: "{{ virtualhosts }}"
@@ -21,7 +21,7 @@
     flat: true
 
 - name: Transfer certificates to the HAproxy
-  when: item.local_certificate | default('true') | bool
+  when: not item.public_certificate | default('false') | bool
   notify: Restart haproxy
   loop: "{{ virtualhosts }}"
   loop_control:
