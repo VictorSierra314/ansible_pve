@@ -21,6 +21,7 @@
 
 ### VM migration variables
 # migrate_vm:        # boolean - DEFAULT TRUE - Run VM Migration tasks
+# migrate_vm_lock    # String - Tag name that will exlude VM from the migration
 ## Set a node to migrade odd VM(based on vmid) and another for even VM(based on vmid)
 ## This way you split the worload of your node beeing upgraded in 2 other node
 ## The node (pve hypervisor) name need to match the ID in your cluster
