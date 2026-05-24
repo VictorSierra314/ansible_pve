@@ -23,6 +23,8 @@
   when:
     - node_lxc_list.json.data[0] is defined
     - item.status == 'running'
+    - item.tags is defined
+    - vm_migration_lock_tag in item.tags
   failed_when: false
   delegate_to: localhost
   loop: "{{ node_lxc_list.json.data }}"
@@ -46,6 +48,8 @@
   when:
     - node_vms_list.json.data[0] is defined
     - item.status == 'running'
+    - item.tags is defined
+    - vm_migration_lock_tag in item.tags
   failed_when: false
   delegate_to: localhost
   loop: "{{ node_vms_list.json.data }}"
@@ -79,6 +83,8 @@
           (
             migration_lxc_check.json.data
             | selectattr('status', 'equalto', 'running')
+            | selectattr('tags', 'defined')
+            | selectattr('tags', 'search', vm_migration_lock_tag)
             | list
             | length
           ) == 0
@@ -101,6 +107,8 @@
           (
             migration_vm_check.json.data
             | selectattr('status', 'equalto', 'running')
+            | selectattr('tags', 'defined')
+            | selectattr('tags', 'search', vm_migration_lock_tag)
             | list
             | length
           ) == 0
