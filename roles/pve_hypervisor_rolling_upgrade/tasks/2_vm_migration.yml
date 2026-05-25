@@ -23,7 +23,7 @@
   when:
     - node_lxc_list.json.data[0] is defined
     - item.status == 'running'
-    - migrate_vm_lock in (item.tags | default(''))
+    - migrate_vm_lock not in (item.tags | default(''))
   failed_when: false
   delegate_to: localhost
   loop: "{{ node_lxc_list.json.data }}"
@@ -47,7 +47,7 @@
   when:
     - node_vms_list.json.data[0] is defined
     - item.status == 'running'
-    - migrate_vm_lock in (item.tags | default(''))
+    - migrate_vm_lock not in (item.tags | default(''))
   failed_when: false
   delegate_to: localhost
   loop: "{{ node_vms_list.json.data }}"
