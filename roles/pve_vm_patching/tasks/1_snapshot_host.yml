@@ -52,5 +52,5 @@
         day: "{{ snapshot_rm_day }}"
         month: "{{ snapshot_rm_month }}"
         user: "{{ snapshot_rm_user }}"
-        job: "{{ ansible_bin_path }} {{ ansible_playbook_path }} --tags snaprm > /dev/null"
+        job: "{{ ansible_bin_path }} {{ ansible_playbook_path }} --tags snaprm 2>/dev/null"
         state: present
