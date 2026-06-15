@@ -20,6 +20,12 @@
 - name: Update guest hostname, packages, and filesystems
   include_tasks: 4_update_guest.yml
 
+- name: Update guest disk space
+  when:
+    - new_vm_filesystem_size is defined
+    - new_vm_filesystem_size | int > 0
+  include_tasks: 5_update_diskspace.yml
+
 - name: Set Zabbix configuration
 # Only if set_zabbix is set to yes in defaults variables.
 # You need to have Zabbix autoregistration configured.
@@ -38,7 +44,7 @@
       - "PVE_HOST: {{ new_vm_destination_node }}"
       - "CPU: {{ new_vm_cpu }}vcpu"
       - "RAM: {{ new_vm_memory }}MB"
-      - "OS_DRIVE: {{ new_vm_filesystem_size }}G additional space"
+      - "{% if new_vm_filesystem_size is defined and new_vm_filesystem_size | int > 0 %}OS_DRIVE: {{ new_vm_filesystem_size }}G additional space{% else %}OS_DRIVE: Default sizing, no added space{% endif %}"
       - "OS_TYPE: {{ new_vm_os_type }}"
       - "IP: {{ new_vm_ip }}"
       - "FQDN: {{ new_vm_name }}.{{ new_vm_domain }}"
@@ -59,7 +65,11 @@
       PVE_HOST: {{ new_vm_destination_node }}
       CPU: {{ new_vm_cpu }}vcpu
       RAM: {{ new_vm_memory }}MB
+      {% if new_vm_filesystem_size is defined and new_vm_filesystem_size | int > 0 %}
       OS_DRIVE: {{ new_vm_filesystem_size }}G additional space
+      {% else %}
+      OS_DRIVE: Default sizing, no added space
+      {% endif %}
       OS_TYPE: {{ new_vm_os_type }}
       IP: {{ new_vm_ip }}
       FQDN: {{ new_vm_name }}.{{ new_vm_domain }}

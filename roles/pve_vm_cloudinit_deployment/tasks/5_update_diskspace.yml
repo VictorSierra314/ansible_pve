@@ -1,0 +1,101 @@
+---
+######## OS DEPLOYMENT TASKS #####################################################################
+# This part will run the last tasks in the OS to finish the deployment.
+# Zabbix conf update, local admin user creation, disk resize.
+# The playbook run with localhost only, so all task are delegated to the guest IP
+
+- name: Last step of deployment in the guest OS
+  block:
+    # Gather the disk ID added during the deployment with the task 'PVE | Add additional storage for the root filesystem'
+    - name: Gather additional disk id
+      ansible.builtin.shell: lsblk | grep disk | tail -n1 | grep {{ new_vm_filesystem_size }}G | cut -d ' ' -f 1
+      register: vm_disk_info
+      changed_when: vm_disk_info.rc == 0
+      failed_when: vm_disk_info.rc != 0
+      delegate_to: "{{ new_vm_ip }}"
+
+    # Disk resize is in 4 steps. The additional disk added is added to the volume.
+    # Root will be resized first, then home then var.
+    # In this current setup:
+    # new_vm_logic_vol_root_size: +33%FREE
+    # new_vm_logic_vol_home_size: +50%FREE
+    # new_vm_logic_vol_var_size: +100%FREE
+    # They all get a third of the additional space. Root get a third then home on the 2 third left get half (A third of initial space)
+    # Then var is getting what is left the last third.
+    - name: OS | Extend the root volume group
+      community.general.lvg:
+        vg: "{{ new_vm_vol_group_os }}"
+        pvs: '/dev/{{ vm_disk_info.stdout }}'
+      delegate_to: "{{ new_vm_ip }}"
+      register: new_vm_resize_root_vg_output
+
+    - name: OS | Resize the root logical volume
+      community.general.lvol:
+        vg: "{{ new_vm_vol_group_os }}"
+        lv: "{{ new_vm_logic_vol_root }}"
+        size: "{{ new_vm_logic_vol_root_size }}"
+        resizefs: true
+      delegate_to: "{{ new_vm_ip }}"
+      register: new_vm_resize_root_fs_output
+
+    - name: OS | Resize the home logical volume
+      community.general.lvol:
+        vg: "{{ new_vm_vol_group_os }}"
+        lv: "{{ new_vm_logic_vol_home }}"
+        size: "{{ new_vm_logic_vol_home_size }}"
+        resizefs: true
+      delegate_to: "{{ new_vm_ip }}"
+      register: new_vm_resize_home_fs_output
+
+    - name: OS | Resize the var logical volume
+      community.general.lvol:
+        vg: "{{ new_vm_vol_group_os }}"
+        lv: "{{ new_vm_logic_vol_var }}"
+        size: "{{ new_vm_logic_vol_var_size }}"
+        resizefs: true
+      delegate_to: "{{ new_vm_ip }}"
+      register: new_vm_resize_var_fs_output
+
+  rescue:
+    - name: OS | Email notification on failure
+      community.general.mail:
+        from: "{{ notification_sender }}"
+        to: "{{ notification_email }}"
+        host: "{{ smtp_host }}"
+        port: "{{ smtp_port }}"
+        username: "{{ smtp_user | default(omit) }}"
+        password: "{{ smtp_password | default(omit) }}"
+        subject: "Ansible automation - FAILURE - {{ new_vm_name }} deployment failed"
+        secure: "{{ smtp_sec_mode | default ('starttls') }}"
+        body: |
+          ---------------------------
+          {{ new_vm_name }} - Deployment FAILED
+          ---------------------------
+          Ansible FAILED to deploy {{ new_vm_name }}
+          Date: {{ ansible_date_time.date }}
+          Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
+
+          {% if vm_disk_info.rc is defined and vm_disk_info.rc != 0 %}
+          No additional disk found
+          {{ vm_disk_info | to_nice_yaml }}
+          {% endif %}
+          {% if new_vm_resize_root_vg_output.failed is defined and new_vm_resize_root_vg_output.failed %}
+          VM failed to extend ROOT volume group:
+          {{ new_vm_resize_root_vg_output | to_nice_yaml }}
+          {% endif %}
+          {% if new_vm_resize_root_fs_output.failed is defined and new_vm_resize_root_fs_output.failed %}
+          VM failed to resize root filesystem:
+          {{ new_vm_resize_root_fs_output | to_nice_yaml }}
+          {% endif %}
+          {% if new_vm_resize_home_fs_output.failed is defined and new_vm_resize_home_fs_output.failed %}
+          VM failed to resize root filesystem:
+          {{ new_vm_resize_home_fs_output | to_nice_yaml }}
+          {% endif %}
+          {% if new_vm_resize_var_fs_output.failed is defined and new_vm_resize_var_fs_output.failed %}
+          VM failed to resize root filesystem:
+          {{ new_vm_resize_var_fs_output | to_nice_yaml }}
+          {% endif %}
+
+    - name: Exit playbook
+      ansible.builtin.fail:
+        msg: "ERROR - Deployment failure - One of the os deployment task failed, exiting playbook"
