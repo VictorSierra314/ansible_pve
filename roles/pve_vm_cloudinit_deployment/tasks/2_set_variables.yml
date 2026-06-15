@@ -46,5 +46,5 @@
 
 - name: Set variables for the RHEL10 template
   ansible.builtin.include_vars:
-    file: "{{ playbook_dir }}/inventory/hosts_vars/template-rhel10.yml"
+    file: "{{ playbook_dir }}/inventory/host_vars/template-rhel10.yml"
   when: new_vm_os_type == "rhel10"

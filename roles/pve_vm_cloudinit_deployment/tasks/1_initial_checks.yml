@@ -13,7 +13,7 @@
         api_user: "{{ pve_api_user }}"
         api_token_id: "{{ pve_api_token }}"
         api_token_secret: "{{ pve_api_secret }}"
-        api_host: "{{ pve_api_node }}"
+        api_host: "{{ pve_api_node }}.{{ pve_domain }}"
         name: "{{ new_vm_name }}"
         state: current
       register: check_vm_status

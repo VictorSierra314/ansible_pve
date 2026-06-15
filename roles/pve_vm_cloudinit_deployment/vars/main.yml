@@ -7,7 +7,7 @@
 #     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # pve_api_node:            # Set the proxmox node FQDN used to execute all the API calls
-# proxmox_cert_validation: # Boolean - Enable/Disable proxmox node HTTPS certificate verification
+# pve_cert_validation: # Boolean - Enable/Disable proxmox node HTTPS certificate verification
 # smtp_host:               # SMTP server used to relay any email
 # smtp_port:               # SMTP server port
 # smtp_user:               # Default omit - SMTP user

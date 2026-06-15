@@ -11,7 +11,7 @@
         api_user: "{{ pve_api_user }}"
         api_token_id: "{{ pve_api_token }}"
         api_token_secret: "{{ pve_api_secret }}"
-        api_host: "{{ pve_api_node }}"
+        api_host: "{{ pve_api_node }}.{{ pve_domain }}"
         clone: "{{ new_vm_template_name }}"
         vmid: "{{ new_vm_template_id }}"
         name: "{{ new_vm_name }}"
@@ -21,7 +21,7 @@
         full: yes
         timeout: 6000
         state: present
-        validate_certs: "{{ proxmox_cert_validation | bool | default('false') }}"
+        validate_certs: "{{ pve_cert_validation | default('false') | bool }}"
       register: new_vm_deployment_output
 
     # Update the guest network info. Set the subnet specific to the guest environment.
@@ -30,7 +30,8 @@
         api_user: "{{ pve_api_user }}"
         api_token_id: "{{ pve_api_token }}"
         api_token_secret: "{{ pve_api_secret }}"
-        api_host: "{{ pve_api_node }}"
+        api_host: "{{ pve_api_node }}.{{ pve_domain }}"
+        validate_certs: "{{ pve_cert_validation | default('false') | bool }}"
         name: "{{ new_vm_name }}"
         vmid: "{{ new_vm_deployment_output.vmid }}"
         interface: "{{ new_vm_guest_interface_name }}"
@@ -46,7 +47,8 @@
         api_user: "{{ pve_api_user }}"
         api_token_id: "{{ pve_api_token }}"
         api_token_secret: "{{ pve_api_secret }}"
-        api_host: "{{ pve_api_node }}"
+        api_host: "{{ pve_api_node }}.{{ pve_domain }}"
+        validate_certs: "{{ pve_cert_validation | default('false') | bool }}"
         vmid: "{{ new_vm_deployment_output.vmid }}"
         name: "{{ new_vm_name }}"
         node: "{{ new_vm_destination_node }}"
@@ -80,7 +82,8 @@
         api_user: "{{ pve_api_user }}"
         api_token_id: "{{ pve_api_token }}"
         api_token_secret: "{{ pve_api_secret }}"
-        api_host: "{{ pve_api_node }}"
+        api_host: "{{ pve_api_node }}.{{ pve_domain }}"
+        validate_certs: "{{ pve_cert_validation | default('false') | bool }}"
         vmid: "{{ new_vm_deployment_output.vmid }}"
         name: "{{ new_vm_name }}"
         storage: "{{ new_vm_pve_storage }}"
@@ -98,7 +101,8 @@
         api_user: "{{ pve_api_user }}"
         api_token_id: "{{ pve_api_token }}"
         api_token_secret: "{{ pve_api_secret }}"
-        api_host: "{{ pve_api_node }}"
+        api_host: "{{ pve_api_node }}.{{ pve_domain }}"
+        validate_certs: "{{ pve_cert_validation | default('false') | bool }}"
         vmid: "{{ new_vm_deployment_output.vmid }}"
         name: "{{ new_vm_name }}"
         node: "{{ new_vm_destination_node }}"
