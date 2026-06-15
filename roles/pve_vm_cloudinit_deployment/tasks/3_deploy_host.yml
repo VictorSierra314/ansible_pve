@@ -1,0 +1,155 @@
+---
+######## DEPLOYMENT TASKS ########################################################################
+# Block for proxmox deployment tasks.
+# The following tasks are all API calls running from localhost
+
+- name: Deploy {{ new_vm_name }} in Proxmox infrastructure
+  block:
+    # Clone the VM only from the template (Used template vmid)
+    - name: PVE | Clone {{ new_vm_name }}
+      community.proxmox.proxmox_kvm:
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token }}"
+        api_token_secret: "{{ pve_api_secret }}"
+        api_host: "{{ pve_api_node }}"
+        clone: "{{ new_vm_template_name }}"
+        vmid: "{{ new_vm_template_id }}"
+        name: "{{ new_vm_name }}"
+        node: "{{ new_vm_destination_node }}"
+        storage: "{{ new_vm_pve_storage }}"
+        format: raw
+        full: yes
+        timeout: 6000
+        state: present
+        validate_certs: "{{ proxmox_cert_validation | bool | default('false') }}"
+      register: new_vm_deployment_output
+
+    # Update the guest network info. Set the subnet specific to the guest environment.
+    - name: PVE | Update {{ new_vm_name }} network interface
+      community.proxmox.proxmox_nic:
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token }}"
+        api_token_secret: "{{ pve_api_secret }}"
+        api_host: "{{ pve_api_node }}"
+        name: "{{ new_vm_name }}"
+        vmid: "{{ new_vm_deployment_output.vmid }}"
+        interface: "{{ new_vm_guest_interface_name }}"
+        model: "{{ new_vm_guest_interface_type }}"
+        bridge: "{{ new_vm_pve_network }}"
+        firewall: "{{ new_vm_guest_interface_fw }}"
+        state: present
+      register: new_vm_network_interface_update_output
+
+    # Update the guest hardware config. Apply cpu, memory, cloud init setup
+    - name: PVE | Update {{ new_vm_name }} hardware configuration
+      community.proxmox.proxmox_kvm:
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token }}"
+        api_token_secret: "{{ pve_api_secret }}"
+        api_host: "{{ pve_api_node }}"
+        vmid: "{{ new_vm_deployment_output.vmid }}"
+        name: "{{ new_vm_name }}"
+        node: "{{ new_vm_destination_node }}"
+        timeout: 300
+        update: true
+        # Hardware info
+        cores: "{{ (new_vm_cpu / new_vm_sockets) | int }}"
+        sockets: "{{ new_vm_sockets }}"
+        memory: "{{ new_vm_memory }}"
+        onboot: "{{ new_vm_start_on_boot | default('false') }}"
+        # Cloud init info
+        ciuser: "{{ proxmox_cloud_init_username }}"
+        cipassword: "{{ proxmox_cloud_init_password }}"
+        searchdomains: "{{ new_vm_domain }}"
+        nameservers: "{{ new_vm_dns }}"
+        sshkeys: "{{ proxmox_cloud_init_sshkey }}"
+        ipconfig:
+          ipconfig0: "ip={{ new_vm_ip }}/{{ new_vm_subnet }},gw={{ new_vm_default_gateway }}"
+      register: new_vm_update_config_output
+
+    # Refresh cloud init images after the update
+    - name: PVE | Update cloud-init image
+      ansible.builtin.shell: "qm cloudinit update {{ new_vm_deployment_output.vmid }}"
+      delegate_to: "{{ new_vm_destination_node }}"
+      register: new_vm_update_cloud_init_output
+      when: new_vm_update_config_output.changed
+
+    # Add disk space. Add a disk to the vm. Task to grow the disk comes later.
+    - name: PVE | Add additional storage for the root filesystem
+      community.proxmox.proxmox_disk:
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token }}"
+        api_token_secret: "{{ pve_api_secret }}"
+        api_host: "{{ pve_api_node }}"
+        vmid: "{{ new_vm_deployment_output.vmid }}"
+        name: "{{ new_vm_name }}"
+        storage: "{{ new_vm_pve_storage }}"
+        format: raw
+        disk: scsi1
+        iothread: true
+        size: "{{ new_vm_filesystem_size }}"
+        state: present
+      register: new_vm_add_root_disk_output
+      when: new_vm_deployment_output.changed
+
+    # Start the host to enable the end of the deployment.
+    - name: PVE | Start {{ new_vm_name }}
+      community.proxmox.proxmox_kvm:
+        api_user: "{{ pve_api_user }}"
+        api_token_id: "{{ pve_api_token }}"
+        api_token_secret: "{{ pve_api_secret }}"
+        api_host: "{{ pve_api_node }}"
+        vmid: "{{ new_vm_deployment_output.vmid }}"
+        name: "{{ new_vm_name }}"
+        node: "{{ new_vm_destination_node }}"
+        timeout: 300
+        state: started
+      register: new_vm_start_output
+
+  rescue:
+    - name: PVE | Email notification on failure
+      community.general.mail:
+        from: "{{ notification_sender }}"
+        to: "{{ notification_email }}"
+        host: "{{ smtp_host }}"
+        port: "{{ smtp_port }}"
+        username: "{{ smtp_user | default(omit) }}"
+        password: "{{ smtp_password | default(omit) }}"
+        subject: "Ansible automation - FAILURE - {{ new_vm_name }} deployment failed"
+        secure: "{{ smtp_sec_mode | default ('starttls') }}"
+        body: |
+          ---------------------------
+          {{ new_vm_name }} - Deployment FAILED
+          ---------------------------
+          Ansible FAILED to deploy {{ new_vm_name }}
+          Date: {{ ansible_date_time.date }}
+          Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
+
+          {% if new_vm_deployment_output.failed is defined and new_vm_deployment_output.failed %}
+          VM clone failure output:
+          {{ new_vm_deployment_output | to_nice_yaml }}
+          {% endif %}
+          {% if new_vm_network_interface_update_output.failed is defined and new_vm_network_interface_update_output.failed %}
+          Vm update network interface failure output:
+          {{ new_vm_network_interface_update_output | to_nice_yaml }}
+          {% endif %}
+          {% if new_vm_update_config_output.failed is defined and new_vm_update_config_output.failed %}
+          VM update hardware configuration failure output:
+          {{ new_vm_update_config_output | to_nice_yaml }}
+          {% endif %}
+          {% if new_vm_update_cloud_init_output.failed is defined and new_vm_update_cloud_init_output.failed %}
+          VM refresh cloud init configuration failure output:
+          {{ new_vm_update_cloud_init_output | to_nice_yaml }}
+          {% endif %}
+          {% if new_vm_add_root_disk_output.failed is defined and new_vm_add_root_disk_output.failed %}
+          Add additional root disk failure output:
+          {{ new_vm_add_root_disk_output | to_nice_yaml }}
+          {% endif %}
+          {% if new_vm_start_output.failed is defined and new_vm_start_output.failed %}
+          Start VM failure output:
+          {{ new_vm_start_output | to_nice_yaml }}
+          {% endif %}
+
+    - name: Exit playbook
+      ansible.builtin.fail:
+        msg: "ERROR - Deployment failure - One of the deployment task failed, exiting playbook"

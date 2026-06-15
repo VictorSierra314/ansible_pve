@@ -1,0 +1,50 @@
+---
+######## SET SPECIFIC ENVIRONMENT VARIABLES #######################################################
+# Depending on the environment (prod, qa, dev) and the type of OS (rocky, debian, rhel)
+# value used for some variables can change, like the subnet, the base template or the zabbix group.
+# The following task will assign value based on the environment and os type.
+
+### Variables loaded by the environment
+# new_vm_pve_network: vmbr1
+# new_vm_pve_storage: ceph_prod_pool
+# new_vm_default_gateway: 10.1.0.1
+# new_vm_subnet: 16
+# new_vm_dns: 10.1.0.2
+# new_vm_domain: prod.testcompany.loc
+# new_vm_zabbix_metadata_group: linux_servers_production
+# new_vm_zabbix_server: 10.1.0.3
+# new_vm_zabbix_port: 10051
+
+- name: Set variables for INFRA
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/inventory/group_vars/infra.yml"
+  when: new_vm_ip | ansible.utils.ipaddr(subnet_infra)
+
+- name: Set variables for DMZ
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/inventory/group_vars/dmz.yml"
+  when: new_vm_ip | ansible.utils.ipaddr(subnet_dmz)
+
+- name: Set variables for CLIENT
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/inventory/group_vars/client.yml"
+  when: new_vm_ip | ansible.utils.ipaddr(subnet_client)
+
+### Variables loaded for the template
+# new_vm_template_name: template-rocky9
+# new_vm_template_id: 901
+# new_vm_template_connection: ens18
+# new_vm_zabbix_conf_path: /etc/zabbix_agentd.conf
+# new_vm_vol_group_os: vgrl
+# new_vm_logic_vol_root: root
+# new_vm_logic_vol_root_size: +33%FREE
+# new_vm_logic_vol_home: home
+# new_vm_logic_vol_home_size: +50%FREE
+# new_vm_logic_vol_var: var
+# new_vm_logic_vol_var_size: +100%FREE
+# new_vm_su_group: wheel
+
+- name: Set variables for the RHEL10 template
+  ansible.builtin.include_vars:
+    file: "{{ playbook_dir }}/inventory/hosts_vars/template-rhel10.yml"
+  when: new_vm_os_type == "rhel10"
