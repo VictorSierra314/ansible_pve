@@ -93,7 +93,10 @@
         size: "{{ new_vm_filesystem_size }}"
         state: present
       register: new_vm_add_root_disk_output
-      when: new_vm_deployment_output.changed
+      when: 
+        - new_vm_deployment_output.changed
+        - new_vm_filesystem_size is defined
+        - new_vm_filesystem_size | int > 0
 
     # Start the host to enable the end of the deployment.
     - name: PVE | Start {{ new_vm_name }}

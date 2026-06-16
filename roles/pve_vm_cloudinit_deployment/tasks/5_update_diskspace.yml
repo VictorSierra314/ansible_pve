@@ -8,53 +8,40 @@
   block:
     # Gather the disk ID added during the deployment with the task 'PVE | Add additional storage for the root filesystem'
     - name: Gather additional disk id
-      ansible.builtin.shell: lsblk | grep disk | tail -n1 | grep {{ new_vm_filesystem_size }}G | cut -d ' ' -f 1
       register: vm_disk_info
       changed_when: vm_disk_info.rc == 0
       failed_when: vm_disk_info.rc != 0
       delegate_to: "{{ new_vm_ip }}"
+      ansible.builtin.shell: lsblk | grep disk | tail -n1 | grep {{ new_vm_filesystem_size }}G | cut -d ' ' -f 1
 
-    # Disk resize is in 4 steps. The additional disk added is added to the volume.
-    # Root will be resized first, then home then var.
-    # In this current setup:
-    # new_vm_logic_vol_root_size: +33%FREE
-    # new_vm_logic_vol_home_size: +50%FREE
-    # new_vm_logic_vol_var_size: +100%FREE
+    # Disk resize is in 4 steps. The additional disk added is added to the os volume.
+    # List all FS to be resized in new_vm_logic_vol
+    # new_vm_logic_vol:
+    #   - { lvid: 'rootlv', size: '+33%FREE' }
+    #   - { lvid: 'homelv', size: '+50%FREE' }
+    #   - { lvid: 'varlv', size: '+100%FREE' }
     # They all get a third of the additional space. Root get a third then home on the 2 third left get half (A third of initial space)
     # Then var is getting what is left the last third.
+    # size can be used with either %of free space like this exemple or hardcoded size.
     - name: OS | Extend the root volume group
+      delegate_to: "{{ new_vm_ip }}"
+      register: new_vm_resize_root_vg_output
       community.general.lvg:
         vg: "{{ new_vm_vol_group_os }}"
         pvs: '/dev/{{ vm_disk_info.stdout }}'
-      delegate_to: "{{ new_vm_ip }}"
-      register: new_vm_resize_root_vg_output
+        remove_extra_pvs: false
 
-    - name: OS | Resize the root logical volume
+    - name: OS | Resize filesystems
+      delegate_to: "{{ new_vm_ip }}"
+      register: new_vm_resize_fs_output
+      loop: "{{ new_vm_logic_vol }}"
+      loop_control:
+        label: "{{ item.lvid }}"
       community.general.lvol:
         vg: "{{ new_vm_vol_group_os }}"
-        lv: "{{ new_vm_logic_vol_root }}"
-        size: "{{ new_vm_logic_vol_root_size }}"
+        lv: "{{ item.lvid }}"
+        size: "{{ item.size }}"
         resizefs: true
-      delegate_to: "{{ new_vm_ip }}"
-      register: new_vm_resize_root_fs_output
-
-    - name: OS | Resize the home logical volume
-      community.general.lvol:
-        vg: "{{ new_vm_vol_group_os }}"
-        lv: "{{ new_vm_logic_vol_home }}"
-        size: "{{ new_vm_logic_vol_home_size }}"
-        resizefs: true
-      delegate_to: "{{ new_vm_ip }}"
-      register: new_vm_resize_home_fs_output
-
-    - name: OS | Resize the var logical volume
-      community.general.lvol:
-        vg: "{{ new_vm_vol_group_os }}"
-        lv: "{{ new_vm_logic_vol_var }}"
-        size: "{{ new_vm_logic_vol_var_size }}"
-        resizefs: true
-      delegate_to: "{{ new_vm_ip }}"
-      register: new_vm_resize_var_fs_output
 
   rescue:
     - name: OS | Email notification on failure
@@ -83,17 +70,9 @@
           VM failed to extend ROOT volume group:
           {{ new_vm_resize_root_vg_output | to_nice_yaml }}
           {% endif %}
-          {% if new_vm_resize_root_fs_output.failed is defined and new_vm_resize_root_fs_output.failed %}
-          VM failed to resize root filesystem:
-          {{ new_vm_resize_root_fs_output | to_nice_yaml }}
-          {% endif %}
-          {% if new_vm_resize_home_fs_output.failed is defined and new_vm_resize_home_fs_output.failed %}
-          VM failed to resize root filesystem:
-          {{ new_vm_resize_home_fs_output | to_nice_yaml }}
-          {% endif %}
-          {% if new_vm_resize_var_fs_output.failed is defined and new_vm_resize_var_fs_output.failed %}
-          VM failed to resize root filesystem:
-          {{ new_vm_resize_var_fs_output | to_nice_yaml }}
+          {% if new_vm_resize_fs_output.failed is defined and new_vm_resize_fs_output.failed %}
+          VM failed to resize a filesystem:
+          {{ new_vm_resize_fs_output | to_nice_yaml }}
           {% endif %}
 
     - name: Exit playbook

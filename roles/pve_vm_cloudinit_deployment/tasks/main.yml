@@ -13,11 +13,7 @@
 # If the guest exist most of the task will not run, check the README.
   include_tasks: 3_deploy_host.yml
 
-- name: Wait for all guest to be available
-  wait_for_connection:
-  delegate_to: "{{ new_vm_ip }}"
-
-- name: Update guest hostname, packages, and filesystems
+- name: Update guest hostname, and packages
   include_tasks: 4_update_guest.yml
 
 - name: Update guest disk space
@@ -30,7 +26,7 @@
 # Only if set_zabbix is set to yes in defaults variables.
 # You need to have Zabbix autoregistration configured.
 # And the condition based on the Host metadata value.
-  include_tasks: 5_zabbix_configuration.yml
+  include_tasks: 6_zabbix_configuration.yml
   when: set_zabbix | default('true') | bool
 
 ########### REPORTS #######################################################################

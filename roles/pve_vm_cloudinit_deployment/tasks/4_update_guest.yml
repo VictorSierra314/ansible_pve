@@ -8,15 +8,29 @@
   block:
     # Wait the basic timeout period for the VM to start before running anything
     - name: OS | Wait for {{ new_vm_name }} to be live
-      ansible.builtin.wait_for_connection:
       delegate_to: "{{ new_vm_ip }}"
       register: new_vm_wait_to_start
+      ansible.builtin.wait_for_connection:
 
-    - name: Set {{ guest_name }} hosts file
+    - name: Set {{ new_vm_name }} hosts file
+      delegate_to: "{{ new_vm_ip }}"
       ansible.builtin.template:
         src: hosts.j2
         dest: /etc/hosts
-      delegate_to: "{{ guest_ip }}"
+
+    - name: Update packages for Debian guest
+      when: "'debian' in new_vm_os_type"
+      delegate_to: "{{ new_vm_ip }}"
+      ansible.builtin.apt:
+        update_cache: yes
+        upgrade: full
+
+    - name: Update packages for RPM guest
+      when: "'debian' not in new_vm_os_type"
+      delegate_to: "{{ new_vm_ip }}"
+      ansible.builtin.dnf:
+        name: '*'
+        state: latest
 
   rescue:
     - name: OS | Email notification on failure

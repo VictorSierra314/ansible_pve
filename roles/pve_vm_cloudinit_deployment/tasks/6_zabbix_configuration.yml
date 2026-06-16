@@ -2,14 +2,14 @@
 # These 2 task will ensure that the zabbix client is installed before changing the configuration
 - name: Ensure zabbix agent is installed - apt
   ansible.builtin.apt:
-    name: zabbix-agent
+    name: "{{ new_vm_zabbix_package }}"
     state: present
   delegate_to: "{{ new_vm_ip }}"
   when: "'debian' in new_vm_os_type"
 
 - name: Ensure zabbix agent is installed - rpm
   ansible.builtin.yum:
-    name: zabbix-agent
+    name: "{{ new_vm_zabbix_package }}"
     state: present
   delegate_to: "{{ new_vm_ip }}"
   when: "'debian' not in new_vm_os_type"
@@ -20,36 +20,46 @@
 # Each metadata group name is defined in the 'Set variables for ENVIRONMENT'
 # Then once the zabbix agent service start it will contact the server and autoregister itself in his own environment group.
 - name: OS | Set {{ new_vm_name }} Zabbix config file
-  ansible.builtin.lineinfile:
-    path: "{{ new_vm_zabbix_conf_path }}"
-    regexp: "{{ item.regexp }}"
-    line: "{{ item.line }}"
+  delegate_to: "{{ new_vm_ip }}"
+  register: new_vm_set_zabbix_conf_output
   loop:
     - { regexp: '^Server=127', line: 'Server={{ new_vm_zabbix_server }}' }
     - { regexp: '^ServerActive=127', line: 'ServerActive={{ new_vm_zabbix_server }}:{{ new_vm_zabbix_port }}' }
     - { regexp: '^Hostname=Za', line: 'Hostname={{ new_vm_name }}' }
     - { regexp: '^# HostMetadata=', line: 'HostMetadata={{ new_vm_zabbix_metadata_group }}' }
     - { regexp: '^# HostInterface=', line: "HostInterface={{ new_vm_ip }}" }
-  delegate_to: "{{ new_vm_ip }}"
-  register: new_vm_set_zabbix_conf_output
+  ansible.builtin.lineinfile:
+    path: "{{ new_vm_zabbix_conf_path }}"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
 
 # Zabbix client in redhat allow the client port during install.
 # But from experience it's best to have a task to check that the port has the right context applied.
 - name: OS | Allow Zabbix client port in {{ new_vm_name }} SELinux
+  when: new_vm_os_type != 'debian'
+  delegate_to: "{{ new_vm_ip }}"
+  register: new_vm_allow_zabbix_sel_output
   community.general.seport:
     ports: 10050
     proto: tcp
     setype: zabbix_port_t
     state: present
-  delegate_to: "{{ new_vm_ip }}"
+
+- name: OS | Allow Zabbix client service in firewalld
   when: new_vm_os_type != 'debian'
-  register: new_vm_allow_zabbix_client_output
+  delegate_to: "{{ new_vm_ip }}"
+  register: new_vm_allow_zabbix_fwd_output
+  ansible.posix.firewalld:
+    service: zabbix-agent
+    state: enable
+    permanent: true
+    immediate: true
 
 # Enable and restart the agent service if the conf has been changed
 # On first start the client will autoregister itself in the server.
 - name: OS | Enable and restart {{ new_vm_name }} Zabbix agent
   ansible.builtin.systemd:
-    name: zabbix-agent
+    name: "{{ new_vm_zabbix_package }}"
     enabled: yes
     state: restarted
   delegate_to: "{{ new_vm_ip }}"

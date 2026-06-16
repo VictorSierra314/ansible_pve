@@ -1,3 +1,3 @@
 127.0.0.1 localhost localhost.localdomain localhost4 localhost4.localdomain4
-127.0.0.1 {{ guest_name | lower }}.{{ domain }} {{ guest_name | lower }}
-{{ guest_ip }} {{ guest_name | lower }}.{{ domain }} {{ guest_name | lower }}
+127.0.0.1 {{ new_vm_name | lower }}.{{ pve_domain }} {{ new_vm_name | lower }}
+{{ new_vm_ip }} {{ new_vm_name | lower }}.{{ pve_domain }} {{ new_vm_name | lower }}
