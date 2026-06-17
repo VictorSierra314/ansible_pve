@@ -52,6 +52,7 @@
         vmid: "{{ new_vm_deployment_output.vmid }}"
         name: "{{ new_vm_name }}"
         node: "{{ new_vm_destination_node }}"
+        tags: "{{ new_vm_os_type }};{{ new_vm_environment }}"
         timeout: 300
         update: true
         # Hardware info
