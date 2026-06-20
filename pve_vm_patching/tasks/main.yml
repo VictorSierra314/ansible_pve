@@ -28,30 +28,30 @@
 
 - name: MAIN | Clean previous kernels | RPM based OS only
   when:
-    - enable_kernel_cleanup|default('false')|bool
+    - enable_kernel_cleanup | default('false') | bool
     - ansible_os_family == 'RedHat'
-    - (new_kernel | default({})).changed
+    - new_kernel.changed | default('false') | bool
     - inventory_hostname not in groups['satellite_server_group']
     - inventory_hostname not in groups['satellite_capsule_group']
   ansible.builtin.include_tasks: 6_kernel_cleanup.yml
 
 - name: MAIN | Clean leaf packages
   when: >
-    (rhel_patch_out | default({})).changed or
-    (deb_patch_out | default({})).changed
+    rhel_patch_out.changed | default('false') | bool or
+    deb_patch_out.changed | default('false') | bool
   ansible.builtin.include_tasks: 7_leaf_packages_cleanup.yml
 
 - name: MAIN | Post update service check
   when:
     - inventory_hostname not in service_check_exceptions
-    - (rhel_patch_out | default({})).changed or
-      (deb_patch_out | default({})).changed
+    - rhel_patch_out.changed | default('false') | bool or
+      deb_patch_out.changed | default('false') | bool
   ansible.builtin.include_tasks: 8_postupdate_service_check.yml
 
 - name: MAIN | Update Redhat insight
   when:
-    - (rhel_patch_out | default({})).changed
-    - (force_insight_refresh | default({})) | bool
+    - rhel_patch_out.changed | default('false') | bool
+    - force_insight_refresh | default('false') | bool
     - ansible_distribution == 'RedHat'
   register: insight_refresh_result
   changed_when: insight_refresh_result.rc == 0

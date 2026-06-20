@@ -25,9 +25,9 @@
 
     - name: PATCHING | DEBUG | Print patching output
       when:
-        - (rhel_patch_out | default({})).changed or
-          (deb_patch_out | default({})).changed or
-          (alp_patch_out | default({})).changed
+        - rhel_patch_out.changed | default('false') | bool or
+          deb_patch_out.changed | default('false') | bool or
+          alp_patch_out.changed | default('false') | bool
         - print_patching_output | default('false') | bool
       ansible.builtin.debug:
         msg: |
