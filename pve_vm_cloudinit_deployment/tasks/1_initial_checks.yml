@@ -68,12 +68,6 @@
           - new_vm_os_type is defined
           - new_vm_os_type in templates_list
         fail_msg: "ERROR - OS options are new_vm_os_type=rocky (RockyLinux9), rhel (RedHat9), debian (Debian13)"
-    - name: Check the environment variable is in allowed value
-      ansible.builtin.assert:
-        that:
-          - new_vm_environment is defined
-          - new_vm_environment in environment_list
-        fail_msg: "ERROR - OS options are new_vm_os_type=rocky (RockyLinux9), rhel (RedHat9), debian (Debian13)"
     - name: Check the report type variable is in allowed value
       ansible.builtin.assert:
         that:

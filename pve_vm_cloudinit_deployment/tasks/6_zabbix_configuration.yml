@@ -51,7 +51,7 @@
   register: new_vm_allow_zabbix_fwd_output
   ansible.posix.firewalld:
     service: zabbix-agent
-    state: enable
+    state: enabled
     permanent: true
     immediate: true
 
