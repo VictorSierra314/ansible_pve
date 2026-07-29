@@ -14,6 +14,13 @@
       delegate_to: "{{ new_vm_ip }}"
       ansible.builtin.shell: lsblk | grep disk | tail -n1 | grep {{ new_vm_filesystem_size }}G | cut -d ' ' -f 1
 
+    - name: Gather root initial pvs
+      register: root_first_pvs
+      changed_when: root_first_pvs.rc == 0
+      failed_when: root_first_pvs.rc != 0
+      delegate_to: "{{ new_vm_ip }}"
+      ansible.builtin.shell: pvs | grep rootvg
+
     # Disk resize is in 4 steps. The additional disk added is added to the os volume.
     # List all FS to be resized in new_vm_logic_vol
     # new_vm_logic_vol:
@@ -28,8 +35,10 @@
       register: new_vm_resize_root_vg_output
       community.general.lvg:
         vg: "{{ new_vm_vol_group_os }}"
-        pvs: '/dev/{{ vm_disk_info.stdout }}'
-        remove_extra_pvs: false
+        pvs: 
+          - "{{ root_first_pvs.stdout.split()[0] }}"
+          - "/dev/{{ vm_disk_info.stdout }}"
+        #remove_extra_pvs: false
 
     - name: OS | Resize filesystems
       delegate_to: "{{ new_vm_ip }}"
