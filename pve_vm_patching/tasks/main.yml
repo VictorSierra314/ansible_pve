@@ -61,6 +61,8 @@
 - name: MAIN | Trigger final report email
   changed_when: true
   run_once: true
-  notify: Email report
+  notify: 
+    - Email report
+    - Email report - fips workaround
   ansible.builtin.debug:
     msg: "Trigger final report email"

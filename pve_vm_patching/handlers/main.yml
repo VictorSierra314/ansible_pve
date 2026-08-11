@@ -64,7 +64,7 @@
       {% endif %}
       {% endfor %}
 
-- name: Email report
+- name: Email report - fips workaround
   when:
     - enable_report | default(true) | bool
     - fips_email_workaround | default(false) | bool
