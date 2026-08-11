@@ -1,7 +1,9 @@
 ---
 # handlers file for pve_vm_patching
 - name: Email report
-  when: enable_report|default('true')|bool
+  when: 
+    - enable_report | default(true) | bool
+    - not fips_email_workaround | default(false) | bool
   delegate_to: localhost
   run_once: true
   community.general.mail:
@@ -61,3 +63,91 @@
       {{ host }} - Failed to come back after reboot 
       {% endif %}
       {% endfor %}
+
+- name: Email report
+  when:
+    - enable_report | default(true) | bool
+    - fips_email_workaround | default(false) | bool
+  run_once: true
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - |
+          import smtplib
+          import ssl
+          from email.message import EmailMessage
+
+          smtp_host = "{{ smtp_host }}"
+          smtp_port = {{ smtp_port }}
+          smtp_user = "{{ smtp_user }}"
+          smtp_password = "{{ smtp_password }}"
+
+          msg = EmailMessage()
+          msg["From"] = "{{ notification_sender }}"
+          msg["To"] = "{{ notification_email }}"
+          msg["Subject"] = "Ansible automation - VM Upgrade Final REPORT"
+
+          msg.set_content("""
+          VM Upgrade final REPORT
+          =======================
+
+          Servers list:
+          {% for host in ansible_play_batch %}
+          {% set os_family = hostvars[host]['ansible_os_family'] %}
+          {% if os_family == 'RedHat' %}
+          - {{ host }}: Patched: {% if hostvars[host]['rhel_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
+          {% elif os_family == 'Debian' %}
+          - {{ host }}: Patched: {% if hostvars[host]['deb_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
+          {% elif os_family == 'Alpine' %}
+          - {{ host }}: Patched: {% if hostvars[host]['alp_patch_out'].changed | default(false) %}YES{% else %}NO{% endif %}; Rebooted: {% if hostvars[host]['new_kernel'].changed | default(false) %}YES{% else %}NO{% endif %}
+          {% endif %}
+          {% endfor %}
+
+          ERRORS, if there are any:
+          {% for host in ansible_play_hosts_all %}
+          {% set hv = hostvars[host] %}
+          {% if hv['vm_info'] is defined and hv['vm_info'].failed | default(false) %}
+          {{ host }} - Could not find the host in VMWare, snapshot not taken
+          {% endif %}
+          {% if hv['create_snap'] is defined and hv['create_snap'].failed | default(false) %}
+          {{ host }} - Snapshot error, VM was not patched
+          {% endif %}
+          {% if hv['rhel_patch_out'] is defined and hv['rhel_patch_out'].failed | default(false) %}
+          {{ host }} - Patching error
+          {% endif %}
+          {% if hv['deb_patch_out'] is defined and hv['deb_patch_out'].failed | default(false) %}
+          {{ host }} - Patching error
+          {% endif %}
+          {% if hv['alp_patch_out'] is defined and hv['alp_patch_out'].failed | default(false) %}
+          {{ host }} - Patching error
+          {% endif %}
+          {% if hv['new_kernel'] is defined and hv['new_kernel'].failed | default(false) %}
+          {{ host }} - Reboot task failed, host is either stuck or took longer than 10min to reboot
+          {% endif %}
+          {% if hv['autorm_out'] is defined and hv['autorm_out'].failed | default(false) %}
+          {{ host }} - Leaf packages removal error
+          {% endif %}
+          {% if hv['wait_for_host'] is defined and hv['wait_for_host'].failed | default(false) %}
+          {{ host }} - Failed to come back after reboot
+          {% endif %}
+          {% endfor %}
+          """)
+
+          ctx = ssl.create_default_context()
+
+          smtp = smtplib.SMTP(smtp_host, smtp_port)
+          smtp.ehlo()
+          smtp.starttls(context=ctx)
+          smtp.ehlo()
+
+          def auth_login(challenge=None):
+              if challenge:
+                  return smtp_password
+              return smtp_user
+
+          smtp.auth("LOGIN", auth_login)
+
+          smtp.send_message(msg)
+          smtp.quit()
+  no_log: true

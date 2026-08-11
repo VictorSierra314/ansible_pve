@@ -19,8 +19,9 @@
     send_service_failed_notification: true
 
 - name: POSTCHECKS | Email notification when services are in failed state
-  when: (send_service_failed_notification | default({}))
+  when: send_service_failed_notification | default(false) | bool
   delegate_to: localhost
+  run_once: true
   community.general.mail:
     from: "{{ notification_sender }}"
     to: "{{ notification_email }}"
