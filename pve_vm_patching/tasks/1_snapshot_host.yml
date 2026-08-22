@@ -43,7 +43,6 @@
 
     - name: SNAPSHOT | Schedule snapshot removal cron {{ snapshot_rm_delay }}h later
       delegate_to: "{{ cron_scheduler }}"
-      when: diabledfornow is defined
       run_once: true
       ansible.builtin.cron:
         name: "{{ snapshot_cron_name }}"
