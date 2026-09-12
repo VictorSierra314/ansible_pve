@@ -47,6 +47,9 @@
   when: new_vm_report_type == 'output' or new_vm_report_type == 'both'
 
 - name: Email report
+  when: 
+    - new_vm_report_type == 'email' or new_vm_report_type == 'both'
+    - not fips_email_workaround | default(false) | bool
   community.general.mail:
     from: "{{ notification_sender }}"
     to: "{{ notification_email }}"
@@ -69,4 +72,59 @@
       OS_TYPE: {{ new_vm_os_type }}
       IP: {{ new_vm_ip }}
       FQDN: {{ new_vm_name }}.{{ new_vm_domain }}
-  when: new_vm_report_type == 'email' or new_vm_report_type == 'both'
+
+- name: Email report - fips workaround
+  when: 
+    - new_vm_report_type == 'email' or new_vm_report_type == 'both'
+    - fips_email_workaround | default(false) | bool
+  no_log: true
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - |
+          import smtplib
+          import ssl
+          from email.message import EmailMessage
+
+          smtp_host = "{{ smtp_host }}"
+          smtp_port = {{ smtp_port }}
+          smtp_user = "{{ smtp_user }}"
+          smtp_password = "{{ smtp_password }}"
+
+          msg = EmailMessage()
+          msg["From"] = "{{ notification_sender }}"
+          msg["To"] = "{{ notification_email }}"
+          msg["Subject"] = "Ansible automation - REPORT - {{ new_vm_name }} deployment successful"
+
+          msg.set_content("""\
+          VMID: {{ new_vm_deployment_output.vmid }}
+          PVE_HOST: {{ new_vm_destination_node }}
+          CPU: {{ new_vm_cpu }}vcpu
+          RAM: {{ new_vm_memory }}MB
+          {% if new_vm_filesystem_size is defined and new_vm_filesystem_size | int > 0 %}
+          OS_DRIVE: {{ new_vm_filesystem_size }}G additional space
+          {% else %}
+          OS_DRIVE: Default sizing, no added space
+          {% endif %}
+          OS_TYPE: {{ new_vm_os_type }}
+          IP: {{ new_vm_ip }}
+          FQDN: {{ new_vm_name }}.{{ new_vm_domain }}
+          """)
+
+          ctx = ssl.create_default_context()
+
+          smtp = smtplib.SMTP(smtp_host, smtp_port)
+          smtp.ehlo()
+          smtp.starttls(context=ctx)
+          smtp.ehlo()
+
+          def auth_login(challenge=None):
+              if challenge:
+                  return smtp_password
+              return smtp_user
+
+          smtp.auth("LOGIN", auth_login)
+
+          smtp.send_message(msg)
+          smtp.quit()
