@@ -8,7 +8,9 @@
     # This task will fail if the VM does not exist. (This is the expected result, which is why ignore_errors = true is set)
     # If the VM does exist, the task will not fail, but the output will capture the VM info and reuse it in the next task
     - name: Check if the VM exist
-      ignore_errors: true
+      register: check_vm_status
+      changed_when: false
+      failed_when: check_vm_status.vmid is defined
       community.proxmox.proxmox_kvm:
         api_user: "{{ pve_api_user }}"
         api_token_id: "{{ pve_api_token }}"
@@ -16,14 +18,6 @@
         api_host: "{{ pve_api_node }}.{{ pve_domain }}"
         name: "{{ new_vm_name }}"
         state: current
-      register: check_vm_status
-
-    # This will fail based on check_vm_status output if the vmid is defined (meaning the VM exist)
-    # the task will fail and stop the playbook to avoid redeploying on the same VM.
-    - name: Fail and stop the deployment if the VM already exist in the cluster
-      ansible.builtin.fail:
-        msg: "DEPLOYMENT ABORTED - VM: {{ new_vm_name }} exist in the cluster with VMID: {{ check_vm_status.vmid }}"
-      when: check_vm_status.vmid is defined
 
     # Run check on all the mandatory variables to make sure the content match expected result and also make sure they have been defined.
     - name: Check the name (VM Name) is in allowed value
@@ -33,41 +27,48 @@
           - new_vm_name is not match ('^[0-9]')
           - new_vm_name is match ('^[a-zA-Z0-9-]+$')
         fail_msg: "ERROR: Variable new_vm_name MUST be defined. The VM name MUST NOT start by a number, only dashes are allowed"
+
     - name: Check the cpu variables is in allowed value
       ansible.builtin.assert:
         that:
           - new_vm_cpu is defined
           - new_vm_cpu | int in [1, 2, 4, 8, 12, 16, 20, 24, 32, 48, 64, 72, 128]
         fail_msg: "ERROR - CPU must be one of: 1,2,4,8,12,16,20,24,32,48,64,72,128 (new_vm_cpu={{ new_vm_cpu }})"
+
     - name: Check the core variables is in allowed value
       ansible.builtin.assert:
         that:
           - new_vm_sockets is defined
           - new_vm_sockets | int in [1, 2, 4]
         fail_msg: "ERROR - Sockets must be one of: 1, 2 or 4 (new_vm_sockets={{ new_vm_sockets }})"
+
     - name: Check CPU/socket divisibility
       ansible.builtin.assert:
         that:
           - new_vm_cpu | int % new_vm_sockets | int == 0
         fail_msg: "ERROR - CPU/sockets divisibility is not correct"
+
     - name: Check the ram variables is in allowed value
       ansible.builtin.assert:
         that:
           - new_vm_memory is defined
           - new_vm_memory is match('^[0-9]{4,}$')
         fail_msg: "ERROR - new_vm_memory has to be a number only (4 digit min), new_vm_memory=8192 (8G), new_vm_memory=32768 (32G)..."
+
     - name: Check the disk variables is in allowed value
       ansible.builtin.assert:
         that:
           - new_vm_filesystem_size is defined
           - new_vm_filesystem_size is match('^[0-9]+$')
         fail_msg: "ERROR - new_vm_filesystem_size has to be a number only, like new_vm_filesystem_size=300. The size is in GB"
+
     - name: Check the os variable is in allowed value
       ansible.builtin.assert:
         that:
           - new_vm_os_type is defined
           - new_vm_os_type in templates_list
         fail_msg: "ERROR - OS options are new_vm_os_type=rocky (RockyLinux9), rhel (RedHat9), debian (Debian13)"
+
     - name: Check the report type variable is in allowed value
       ansible.builtin.assert:
         that:
@@ -77,6 +78,7 @@
 
   rescue:
     - name: Email notification on failure
+      when: not fips_email_workaround | default(false) | bool
       community.general.mail:
         from: "{{ notification_sender }}"
         to: "{{ notification_email }}"
@@ -94,9 +96,72 @@
           Date: {{ ansible_date_time.date }}
           Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
 
+          {% if check_vm_status.msg is defined %}
+          {{ new_vm_name }} exist
+          {{ check_vm_status.msg }}
+          {% else %}
           One of the required variables for deployment is not set with the appropriate value.
           Review your playbook and resubmit.
           Deployment exited and nothing was done.
+          {% endif %}
+
+    - name: Email notification on failure - fips workaround
+      when: fips_email_workaround | default(false) | bool
+      no_log: true
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+              import smtplib
+              import ssl
+              from email.message import EmailMessage
+    
+              smtp_host = "{{ smtp_host }}"
+              smtp_port = {{ smtp_port }}
+              smtp_user = "{{ smtp_user }}"
+              smtp_password = "{{ smtp_password }}"
+    
+              msg = EmailMessage()
+              msg["From"] = "{{ notification_sender }}"
+              msg["To"] = "{{ notification_email }}"
+              msg["Subject"] = "Ansible automation - VM Upgrade Final REPORT"
+    
+              msg.set_content("""\
+              ---------------------------
+              {{ new_vm_name }} - Deployment aborted
+              ---------------------------
+              Ansible FAILED to deploy {{ new_vm_name }}
+              Date: {{ ansible_date_time.date }}
+              Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
+
+              {% if check_vm_status.msg is defined %}
+              {{ new_vm_name }} exist
+              {{ check_vm_status.msg }}
+              {% else %}
+              One of the required variables for deployment is not set with the appropriate value.
+              Review your playbook and resubmit.
+              Deployment exited and nothing was done.
+              {% endif %}
+              """)
+
+              ctx = ssl.create_default_context()
+    
+              smtp = smtplib.SMTP(smtp_host, smtp_port)
+              smtp.ehlo()
+              smtp.starttls(context=ctx)
+              smtp.ehlo()
+    
+              def auth_login(challenge=None):
+                  if challenge:
+                      return smtp_password
+                  return smtp_user
+    
+              smtp.auth("LOGIN", auth_login)
+    
+              smtp.send_message(msg)
+              smtp.quit()
+
     - name: Exit playbook
       ansible.builtin.fail:
         msg: "ERROR - Deployment aborted - One of the required variables for deployment is not set with the appropriate value"
