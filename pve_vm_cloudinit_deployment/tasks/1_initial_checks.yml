@@ -125,7 +125,7 @@
               msg = EmailMessage()
               msg["From"] = "{{ notification_sender }}"
               msg["To"] = "{{ notification_email }}"
-              msg["Subject"] = "Ansible automation - VM Upgrade Final REPORT"
+              msg["Subject"] = "Ansible automation - FAILURE - {{ new_vm_name }} deployment aborted"
     
               msg.set_content("""\
               ---------------------------
