@@ -18,17 +18,17 @@
 - name: Set variables for INFRA
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/inventory/group_vars/infra.yml"
-  when: new_vm_ip | ansible.utils.ipaddr(subnet_infra)
+  when: new_vm_ip is ansible.utils.in_network(subnet_infra)
 
 - name: Set variables for DMZ
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/inventory/group_vars/dmz.yml"
-  when: new_vm_ip | ansible.utils.ipaddr(subnet_dmz)
+  when: new_vm_ip is ansible.utils.in_network(subnet_dmz)
 
 - name: Set variables for CLIENT
   ansible.builtin.include_vars:
     file: "{{ playbook_dir }}/inventory/group_vars/client.yml"
-  when: new_vm_ip | ansible.utils.ipaddr(subnet_client)
+  when: new_vm_ip is ansible.utils.in_network(subnet_client)
 
 ### Variables loaded for the template
 # new_vm_template_name: template-rocky9
