@@ -2,6 +2,7 @@
 # tasks file for pve_lxc_haproxy
 - name: Implement haproxy config
   notify: Restart haproxy
+  any_errors_fatal: true
   ansible.builtin.template:
     src: haproxy_cfg.j2
     dest: /etc/haproxy/haproxy.cfg
