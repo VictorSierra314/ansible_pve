@@ -40,7 +40,9 @@
       {{ last_check_out.stdout_lines | to_nice_yaml }}
 
 - name: Email upgrade report to {{ notification_email }}
-  when: enable_report | default ('true') | bool
+  when: 
+    - enable_report | default ('true') | bool
+    - not fips_email_workaround | default(false) | bool
   delegate_to: localhost
   community.general.mail:
     from: "{{ notification_sender }}"
@@ -56,3 +58,52 @@
       {{ inventory_hostname }} - Upgrade report
       ---------------------------
       {{ last_check_out.stdout_lines | to_nice_yaml }}
+
+- name: Email upgrade report - fips workaround
+  # Workaround FIPS + MAil issue. Force AUTH LOGIN
+  # Force some reason does not work with mail
+  when: fips_email_workaround | default(false) | bool
+  run_once: true
+  no_log: true
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - |
+          import smtplib
+          import ssl
+          from email.message import EmailMessage
+
+          smtp_host = "{{ smtp_host }}"
+          smtp_port = {{ smtp_port }}
+          smtp_user = "{{ smtp_user }}"
+          smtp_password = "{{ smtp_password }}"
+
+          msg = EmailMessage()
+          msg["From"] = "{{ notification_sender }}"
+          msg["To"] = "{{ notification_email }}"
+          msg["Subject"] = "Ansible automation - URL Check FAILURE"
+
+          msg.set_content("""
+          ---------------------------
+          {{ inventory_hostname }} - Upgrade report
+          ---------------------------
+          {{ last_check_out.stdout_lines | to_nice_yaml }}
+          """)
+
+          ctx = ssl.create_default_context()
+
+          smtp = smtplib.SMTP(smtp_host, smtp_port)
+          smtp.ehlo()
+          smtp.starttls(context=ctx)
+          smtp.ehlo()
+
+          def auth_login(challenge=None):
+              if challenge:
+                  return smtp_password
+              return smtp_user
+
+          smtp.auth("LOGIN", auth_login)
+
+          smtp.send_message(msg)
+          smtp.quit()
