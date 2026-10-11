@@ -59,6 +59,7 @@
 
   rescue:
     - name: PATCHING | Email notification on failure
+      when: not fips_email_workaround | default(false) | bool
       delegate_to: localhost
       community.general.mail:
         from: "{{ notification_sender }}"
@@ -86,3 +87,61 @@
           {% if ansible_os_family == 'Alpine' %}
           {{ alp_patch_out | to_nice_json }}
           {% endif %}
+    - name: PATCHING | Email notification on failure - fips workaround
+      when: fips_email_workaround | default(false) | bool
+      run_once: true
+      no_log: true
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -c
+          - |
+              import smtplib
+              import ssl
+              from email.message import EmailMessage
+    
+              smtp_host = "{{ smtp_host }}"
+              smtp_port = {{ smtp_port }}
+              smtp_user = "{{ smtp_user }}"
+              smtp_password = "{{ smtp_password }}"
+    
+              msg = EmailMessage()
+              msg["From"] = "{{ notification_sender }}"
+              msg["To"] = "{{ notification_email }}"
+              msg["Subject"] = "Ansible automation - VM Upgrade Final REPORT"
+    
+              msg.set_content("""\
+              ---------------------------
+              {{ inventory_hostname }} - Upgrade FAILED
+              ---------------------------
+              Ansible FAILED to patch {{ inventory_hostname }}
+              Date: {{ ansible_date_time.date }}
+              Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
+              Output:
+              {% if ansible_os_family == 'RedHat' %}
+              {{ rhel_patch_out | to_nice_json }}
+              {% endif %}
+              {% if ansible_os_family == 'Debian' %}
+              {{ deb_patch_out | to_nice_json }}
+              {% endif %}
+              {% if ansible_os_family == 'Alpine' %}
+              {{ alp_patch_out | to_nice_json }}
+              {% endif %}
+              """)
+
+              ctx = ssl.create_default_context()
+    
+              smtp = smtplib.SMTP(smtp_host, smtp_port)
+              smtp.ehlo()
+              smtp.starttls(context=ctx)
+              smtp.ehlo()
+    
+              def auth_login(challenge=None):
+                  if challenge:
+                      return smtp_password
+                  return smtp_user
+    
+              smtp.auth("LOGIN", auth_login)
+    
+              smtp.send_message(msg)
+              smtp.quit()
