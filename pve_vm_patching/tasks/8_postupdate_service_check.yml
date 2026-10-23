@@ -19,7 +19,9 @@
     send_service_failed_notification: true
 
 - name: POSTCHECKS | Email notification when services are in failed state
-  when: send_service_failed_notification | default(false) | bool
+  when:
+    - send_service_failed_notification | default(false) | bool
+    - not fips_email_workaround | default(false) | bool
   delegate_to: localhost
   run_once: true
   community.general.mail:
@@ -44,3 +46,60 @@
       - Service Name: {{ item.key }}, Service State: {{ item.value.state }}
       {% endif %}
       {% endfor %}
+
+- name: POSTCHECKS | Email notification when services are in failed state - fips workaround
+  when: 
+    - send_service_failed_notification | default(false) | bool
+    - fips_email_workaround | default(false) | bool
+  run_once: true
+  no_log: true
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - |
+          import smtplib
+          import ssl
+          from email.message import EmailMessage
+
+          smtp_host = "{{ smtp_host }}"
+          smtp_port = {{ smtp_port }}
+          smtp_user = "{{ smtp_user }}"
+          smtp_password = "{{ smtp_password }}"
+
+          msg = EmailMessage()
+          msg["From"] = "{{ notification_sender }}"
+          msg["To"] = "{{ notification_email }}"
+          msg["Subject"] = "Ansible automation - VM Upgrade Final REPORT"
+
+          msg.set_content("""\
+          ---------------------------
+          {{ inventory_hostname }} - Post upgrade check FAILED
+          ---------------------------
+          Some services are in FAILED state following up {{ inventory_hostname }} upgrade.
+          Date: {{ ansible_date_time.date }}
+          Time: {{ ansible_date_time.time }} {{ ansible_date_time.tz }}
+          Services:
+          {% for item in services_list %}
+          {% if item.value.state == 'failed' %}
+          - Service Name: {{ item.key }}, Service State: {{ item.value.state }}
+          {% endif %}
+          {% endfor %}
+          """)
+
+          ctx = ssl.create_default_context()
+    
+          smtp = smtplib.SMTP(smtp_host, smtp_port)
+          smtp.ehlo()
+          smtp.starttls(context=ctx)
+          smtp.ehlo()
+    
+          def auth_login(challenge=None):
+              if challenge:
+                  return smtp_password
+              return smtp_user
+
+          smtp.auth("LOGIN", auth_login)
+
+          smtp.send_message(msg)
+          smtp.quit()
