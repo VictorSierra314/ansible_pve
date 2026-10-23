@@ -64,13 +64,13 @@
 
           smtp_host = "{{ smtp_host }}"
           smtp_port = {{ smtp_port }}
-          smtp_user = "{{ smtp_user }}"
-          smtp_password = "{{ smtp_password }}"
+          smtp_user = "{{ smtp_user | default(omit) }}"
+          smtp_password = "{{ smtp_password | default(omit) }}"
 
           msg = EmailMessage()
           msg["From"] = "{{ notification_sender }}"
           msg["To"] = "{{ notification_email }}"
-          msg["Subject"] = "Ansible automation - VM Upgrade Final REPORT"
+          msg["Subject"] = "PVE VM Upgrade - ERROR - {{ inventory_hostname }} has services in FAILED state"
 
           msg.set_content("""\
           ---------------------------
